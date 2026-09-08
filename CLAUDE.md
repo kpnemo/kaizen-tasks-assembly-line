@@ -40,6 +40,6 @@ The workspace and cross-repo harness for the Kaizen Tasks workshop. This reposit
 
 - When a change touches both repos, the API changes first; the web follows after pulling the contract.
 - Nothing in this repository merges pull requests. Skills open pull requests and stop. Mike merges.
-- Never push to `develop` or `main` directly. Feature branches and pull requests only, in every repo.
+- Skills never push to `develop` or `main` directly: feature branches and pull requests only, in every repo. `main` only ever receives `develop` by pull request after staging verification. (During the initial build, before the first workshop rehearsal, lanes commit straight to `develop`; that exception ends at the rehearsal.)
 - Secrets never enter any repository.
 - Root hooks: Stop runs `scripts/docs-check-all.sh --hook`; PostToolUse on Edit or Write runs `scripts/format-file.sh`.
