@@ -1,0 +1,8 @@
+# nested application repos, each pushed to its own GitHub repository
+/backend/
+/frontend/
+node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store
