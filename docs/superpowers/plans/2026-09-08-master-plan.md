@@ -113,7 +113,7 @@ These are the only things a lane may assume about another lane. Exact names matt
 
 | Interface | Producer | Consumer | Contract |
 |---|---|---|---|
-| API contract | L1 | L2 | `openapi.json` at the API repo root, also served at `GET /api/v1/openapi.json`. Pulled by `frontend/scripts/pull-openapi.sh [ref]` from `https://raw.githubusercontent.com/kpnemo/kaizen-tasks-api/<ref>/openapi.json`, or `--local <path>` for the nested checkout |
+| API contract | L1 | L2 | `openapi.json` at the API repo root, also served at `GET /api/v1/openapi.json`. Shape (ruled 2026-09-09 00:15): top-level `servers: [{ url: "/api/v1" }]` and bare path keys (`/tasks`, `/auth/login`); clients set `baseUrl: "/api/v1"`. Pulled by `frontend/scripts/pull-openapi.sh [ref]` from `https://raw.githubusercontent.com/kpnemo/kaizen-tasks-api/<ref>/openapi.json`, or `--local <path>` for the nested checkout |
 | Health | L1 | L2, L3, L4 | `GET /api/v1/health` returns `{ "data": { "status": "ok", "commit": "<sha>", "env": "<name>", "checks": { "db": "ok", "redis": "ok" }, "features": { "featureRequests": true|false } } }`, 503 with error code `UNAVAILABLE` when a check fails. `featureRequests` is true exactly when the feature-request route is mounted |
 | Task summary fields | L1 | L2 | `TaskSummary` includes `suggestionCount` (direct children with origin ai in state suggested) and `aiError` (string or null), so the list needs no per-row detail query |
 | Web version | L2 | L3, L4 | `GET /version.json` on the web domain returns `{ "commit": "<sha>", "builtAt": "<iso>" }`, never cached |
