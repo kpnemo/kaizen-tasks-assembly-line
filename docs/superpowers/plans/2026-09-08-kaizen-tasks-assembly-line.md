@@ -249,7 +249,7 @@ Related repositories: [kaizen-tasks-api](https://github.com/kpnemo/kaizen-tasks-
 ## Set up the workspace
 
 ```bash
-git clone git@github.com:kpnemo/kaizen-tasks-assembly-line.git webapp
+gh repo clone kpnemo/kaizen-tasks-assembly-line webapp
 cd webapp
 scripts/setup-workspace.sh
 ```
@@ -1049,13 +1049,14 @@ problem() {
 echo "== 1. Nested repos"
 for dir in backend frontend; do
   case "$dir" in
-    backend) url="git@github.com:kpnemo/kaizen-tasks-api.git" ;;
-    frontend) url="git@github.com:kpnemo/kaizen-tasks-web.git" ;;
+    backend) repo="kpnemo/kaizen-tasks-api" ;;
+    frontend) repo="kpnemo/kaizen-tasks-web" ;;
   esac
   if [ -d "$ROOT/$dir/.git" ]; then
     echo "OK    $dir is a git checkout"
   else
-    run git clone "$url" "$ROOT/$dir"
+    # gh honours the user's configured git protocol (HTTPS with the CLI's credential helper on this machine)
+    run gh repo clone "$repo" "$ROOT/$dir"
   fi
 done
 
@@ -1134,10 +1135,10 @@ Then prove the clone branch with a fixture root:
 
 ```bash
 mkdir -p "$SCRATCH/ws-empty/scripts" && cp scripts/setup-workspace.sh "$SCRATCH/ws-empty/scripts/"
-"$SCRATCH/ws-empty/scripts/setup-workspace.sh" --dry-run | grep 'DRY-RUN: git clone'
+"$SCRATCH/ws-empty/scripts/setup-workspace.sh" --dry-run | grep 'DRY-RUN: gh repo clone'
 ```
 
-Expected: two lines, `DRY-RUN: git clone git@github.com:kpnemo/kaizen-tasks-api.git .../ws-empty/backend` and the web one.
+Expected: two lines, `DRY-RUN: gh repo clone kpnemo/kaizen-tasks-api .../ws-empty/backend` and the web one.
 
 - [ ] **Step 3: Commit**
 
@@ -2460,7 +2461,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [develop, main]
 
 concurrency:
   group: ci-${{ github.ref }}

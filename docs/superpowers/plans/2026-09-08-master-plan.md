@@ -131,7 +131,7 @@ These are the only things a lane may assume about another lane. Exact names matt
 |---|---|---|
 | Paste `ANTHROPIC_API_KEY` into Railway staging and production, and into `backend/.env` | L3-M0, L1 live test | AI breakdowns on staging; the opt-in live test |
 | Generate and paste `JWT_SECRET`, `ADMIN_TOKEN`, `SEED_DEMO_PASSWORD` per environment (L3 offers generated values) | L3-M0 | Deploys |
-| Switch wait-for-CI on for `api` and `web` in both environments in the Railway dashboard | L3-M1 | Verification V4 |
+| Wait-for-CI: no input needed. It is the config field `source.checkSuites`, already true on `api` and `web` in both environments. The dashboard visit in the CI/CD plan only records the toggle's label for the runbook | L3-M1 | nothing |
 | Accept the Railway GitHub app for the two app repos if prompted | L3-M0 | Connecting services |
 | Merge pull requests from `develop` to `main` after staging verification, in every repo | L3-M2, INT | Production and the promote gate proof |
 | Optional: authorize the orchestrator to merge `develop` into `main` during the build phase only | L3-M2 | Otherwise each promotion waits for Mike |
