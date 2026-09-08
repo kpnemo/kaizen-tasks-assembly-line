@@ -77,7 +77,7 @@ Unless `--dry-run`, commit it:
 
 ```bash
 git add triage/<YYYY-MM-DD>.md
-git commit -m "triage: <YYYY-MM-DD>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+git commit -m "triage: <YYYY-MM-DD>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
 
 In `--dry-run`, leave the file uncommitted and say so.
