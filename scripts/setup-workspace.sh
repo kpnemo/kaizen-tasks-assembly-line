@@ -9,6 +9,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY_RUN=0
 if [ "${1:-}" = "--dry-run" ]; then DRY_RUN=1; fi
 
+# Homebrew's postgresql@17 is keg-only: pg_isready, psql and createdb are not linked
+# onto PATH by default. Fall back to the keg's bin directory when the tools aren't found.
+if ! command -v pg_isready >/dev/null 2>&1; then
+  if [ -d /opt/homebrew/opt/postgresql@17/bin ]; then
+    PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+  elif [ -d /usr/local/opt/postgresql@17/bin ]; then
+    PATH="/usr/local/opt/postgresql@17/bin:$PATH"
+  fi
+  export PATH
+fi
+
 run() {
   if [ "$DRY_RUN" = 1 ]; then
     printf 'DRY-RUN:'
@@ -58,7 +69,9 @@ fi
 set -u
 
 echo "== 3. Postgres and Redis"
-if pg_isready -q 2>/dev/null; then
+if ! command -v pg_isready >/dev/null 2>&1; then
+  problem "pg_isready not found; install postgresql@17 with Homebrew or add its bin directory to PATH"
+elif pg_isready -q 2>/dev/null; then
   echo "OK    Postgres answers"
 else
   problem "Postgres is not answering; run: brew services start postgresql@17"
