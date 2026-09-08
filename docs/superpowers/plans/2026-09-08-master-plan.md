@@ -110,7 +110,8 @@ These are the only things a lane may assume about another lane. Exact names matt
 | Interface | Producer | Consumer | Contract |
 |---|---|---|---|
 | API contract | L1 | L2 | `openapi.json` at the API repo root, also served at `GET /api/v1/openapi.json`. Pulled by `frontend/scripts/pull-openapi.sh [ref]` from `https://raw.githubusercontent.com/kpnemo/kaizen-tasks-api/<ref>/openapi.json`, or `--local <path>` for the nested checkout |
-| Health | L1 | L3, L4 | `GET /api/v1/health` returns `{ "data": { "status": "ok", "commit": "<sha>", "env": "<name>", "checks": { "db": "ok", "redis": "ok" } } }`, 503 with error code `UNAVAILABLE` when a check fails |
+| Health | L1 | L2, L3, L4 | `GET /api/v1/health` returns `{ "data": { "status": "ok", "commit": "<sha>", "env": "<name>", "checks": { "db": "ok", "redis": "ok" }, "features": { "featureRequests": true|false } } }`, 503 with error code `UNAVAILABLE` when a check fails. `featureRequests` is true exactly when the feature-request route is mounted |
+| Task summary fields | L1 | L2 | `TaskSummary` includes `suggestionCount` (direct children with origin ai in state suggested) and `aiError` (string or null), so the list needs no per-row detail query |
 | Web version | L2 | L3, L4 | `GET /version.json` on the web domain returns `{ "commit": "<sha>", "builtAt": "<iso>" }`, never cached |
 | Proxy | L2 | L1, L3 | `Caddyfile` proxies `/api/*` to `http://api.railway.internal:3000`; the API service sets `PORT=3000` |
 | Smoke package | L4 | L1, L2 workflows | `kaizen-tasks-assembly-line` at `main`, folder `smoke/`, `npm ci && SMOKE_BASE_URL=<url> npm test`; env `SMOKE_AI_TIMEOUT_MS`, `SMOKE_FAST` |
