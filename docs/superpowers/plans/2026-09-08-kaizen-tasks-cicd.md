@@ -71,7 +71,7 @@ SCRATCH=/private/tmp/claude-502/-Users-Mike-Bogdanovsky-Projects-nice-product-wo
 - The trailer, used verbatim in every commit:
 
 ```bash
-TRAILER="Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+TRAILER="Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
 
 - The Railway prefix and guard, used verbatim at the top of every block that runs a mutating `railway` command:

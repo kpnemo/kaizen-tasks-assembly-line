@@ -41,14 +41,14 @@ Lane-specific constraints, from the assembly-line spec:
 - The commit trailer, used verbatim in every commit step:
 
 ```bash
-TRAILER="Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+TRAILER="Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
 
 - Shell state does not persist between tool calls. Prepend this preamble to every command block that uses `$SCRATCH` or `$TRAILER` (it is omitted from the listings for brevity):
 
 ```bash
 SCRATCH=/private/tmp/claude-502/-Users-Mike-Bogdanovsky-Projects-nice-product-workshop-Sep-2026/b173ad22-2840-489c-891e-760f2df96511/scratchpad; mkdir -p "$SCRATCH"
-TRAILER="Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+TRAILER="Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
 - Scripts are tested with `--dry-run` or a fixture root, never against GitHub or Railway from this lane. The real runs against GitHub happen in the CI/CD lane (`docs/superpowers/plans/2026-09-08-kaizen-tasks-cicd.md`) and at integration.
 - Facts that already hold on 2026-09-08 (master plan section 2, L3-M0 status), which no task may contradict:
@@ -1938,7 +1938,7 @@ Unless `--dry-run`, commit it:
 
 ```bash
 git add triage/<YYYY-MM-DD>.md
-git commit -m "triage: <YYYY-MM-DD>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+git commit -m "triage: <YYYY-MM-DD>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
 
 In `--dry-run`, leave the file uncommitted and say so.
@@ -2148,7 +2148,7 @@ cd backend && nvm use
 npm test
 npm run openapi
 npm run docs:check
-git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 cd ..
 ```
 
@@ -2175,7 +2175,7 @@ Then, in `frontend/`:
 cd frontend && nvm use
 npm test
 npm run docs:check
-git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 cd ..
 ```
 
