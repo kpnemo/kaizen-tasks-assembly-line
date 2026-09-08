@@ -1,0 +1,49 @@
+name: Feature request
+description: Ask for a change to Kaizen Tasks. Every request is scored with the readiness rubric.
+labels: ["feature-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Write for a tester, not for a developer. Checkable acceptance criteria are what move a request up the ranking.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or slow today, for whom, and how do you know
+      placeholder: When I ..., I have to ..., which costs ... I know because ...
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: What should happen instead, as the user would see it
+      placeholder: On the task detail page, a button labeled ... that ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: "How we will know it is done: bullet points a tester could check"
+      placeholder: |
+        - Given ..., when ..., then ...
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What this request deliberately does not include
+    validations:
+      required: false
+  - type: input
+    id: role
+    attributes:
+      label: Your role
+      description: Your role, so the assistant can phrase questions for you
+      placeholder: Product manager, contact-center analytics
+    validations:
+      required: false
