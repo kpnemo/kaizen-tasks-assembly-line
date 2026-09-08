@@ -82,7 +82,7 @@ Unblock conditions, stated so an orchestrator can test them:
 
 | Milestone | Done when |
 |---|---|
-| L3-M0 | Four GitHub repos exist with `develop` default and both branches pushed; labels created in the assembly-line repo; Railway project `kaizen-tasks` has `staging` and `production`, each with Postgres and Redis and the variable set from the specs, secrets pasted by Mike |
+| L3-M0 | Four GitHub repos exist with `develop` default and both branches pushed; labels created in the assembly-line repo; Railway project `kaizen-tasks` has `staging` and `production`, each with Postgres and Redis and the variable set from the specs, secrets pasted by Mike. Status 2026-09-08 evening: done except labels (needs L4 Task 4) and the real Anthropic key (placeholder `REPLACE_ME_WITH_REAL_KEY` is set, Mike replaces it). Project id `67adb3e0-f2af-4ad3-bbaa-32ec8a53b10e`; web domains `https://web-staging-52c0.up.railway.app` and `https://web-production-7ef71.up.railway.app` |
 | L1-M1 | `npm test` and `npm run build` pass in `backend/`; `GET /api/v1/health` serves locally; `openapi.json` is committed and describes every endpoint in the API spec section 4.4 with request and response schemas; `ci.yml` is green on `develop` |
 | L2-M1 | `npm test` and `npm run build` pass in `frontend/`; `dist/version.json` exists after build; `Caddyfile` and `.railway/railway.ts` committed; `ci.yml` green on `develop` |
 | L4-M1 | `rubric/readiness.md` with a `version:` line, the issue form, `scripts/setup-labels.sh`, four seeds, root `CLAUDE.md` committed on `develop` |
@@ -121,6 +121,9 @@ These are the only things a lane may assume about another lane. Exact names matt
 | Docs-check | L1, L2 | L4 root hook | `scripts/docs-check.sh --hook` in each repo, exit 2 on failure with the fix list on stdout; never exits 0 while printing FAILED after the escape hatch |
 | Railway services | L3 | L1, L2 | Project `kaizen-tasks`; services `api`, `web`, `Postgres`, `Redis` in `staging` and `production`; variables named exactly as in the API spec section 2.4 and web spec section 2.3 |
 | Seed reset | L1 | L4 runbook | `POST /api/v1/admin/seed-reset` with header `x-admin-token`; demo user `demo@kaizen.local` |
+| Smoke selector contract | L4 | L2 | The smoke test finds the web app only by accessible roles and names, listed in `smoke/README.md` section "Selector contract" of the assembly-line repo. The web app's components and tests use those exact names |
+| Web port | L3 | L2 | The Railway `web` service sets `PORT=8080`; the `Caddyfile` binds `:{$PORT}`; the API service sets `PORT=3000` |
+| Wait-for-CI | L3 | L1, L2 | Set through the service config field `source.checkSuites: true` per environment; already on for `api` and `web` in both environments since 2026-09-08 |
 
 ## 5. Mike's inputs, and when they block
 
