@@ -95,6 +95,10 @@ Unblock conditions, stated so an orchestrator can test them:
 | L3-M2 | Branch protection on `develop` and `main` in both app repos requires `ci`, and `main` also requires `promote`; one `develop` to `main` promotion in each repo has passed the smoke gate |
 | INT | Seeds filed and triaged with labels and the Triage board; seed 01 implemented by `implement-issue`, merged to `develop` by Mike, promoted to `main`, visible in production; demo user reset; a timed full rehearsal of Part 1 recorded in the runbook |
 
+## 2a. Status log
+
+- 2026-09-08 22:16 to 2026-09-09 00:10 IDT: L3-M0 closed (labels, Triage board, Railway project with both environments, shared Anthropic key). L4-M1 closed (Tasks 1 to 5). L2-M1 closed (frontend Tasks 1 to 7; CI run 34278234791 green). L1-M1 pending only the Task 7 review (backend CI run 34277793354 green). L3-M1 verified by hand: staging web serves `version.json` for 96794ac and proxies `/api/v1/health` to the API at b954269 with db and redis ok. L5 Tasks 1 to 13 complete, Task 14 running. Railway `config plan` pre-staged: web clean (1 change), api blocked on a destructive variable deletion until the backend partial declares `AI_MODEL_PROVIDER`.
+
 ## 3. What each lane can start immediately
 
 - **L1 Backend:** everything in L1-M1, then the rest. Nothing in the backend waits on another lane. Mike's key is needed only for the opt-in live test.
