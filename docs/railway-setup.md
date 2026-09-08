@@ -20,11 +20,11 @@ From `webapp/backend/`:
 ```bash
 railway whoami --json
 railway init --name kaizen-tasks --json
-railway status --json | jq -r '.name, .environment'
+railway status | grep -E '^Project:|^Environment:'
 railway list --json | jq -r '.[].name'
 ```
 
-`init` creates the project with the default `production` environment and links the directory to it. `list` must show `kaizen-tasks` alongside the pre-existing projects, none of which change.
+`init` creates the project with the default `production` environment and links the directory to it. `list` must show `kaizen-tasks` alongside the pre-existing projects, none of which change. Read-backs in this document are verified against Railway CLI 5.49.5. `railway status --json` serializes the raw Project object and has no field for the currently linked environment (`.environment` is `null`, and `--environment <name>` only filters which environment's data the JSON includes, it does not reflect what is actually linked); the human-readable `railway status` output reads the real link and prints both `Project:` and `Environment:` lines, so the grep above is the read-back that actually confirms it.
 
 ## 2. Build production first
 
@@ -89,7 +89,7 @@ Expected `false`. On 2026-09-08 it prints `true` in both environments: the place
 ```bash
 railway environment new staging --duplicate production
 railway environment link staging
-railway status --json | jq -r '.name, .environment'
+railway status | grep -E '^Project:|^Environment:'
 railway service list --json | jq -r '.[].name'
 ```
 
@@ -99,8 +99,17 @@ Duplication copies every service, its configuration, and its variables; the data
 railway environment edit --service-config api source.branch develop --environment staging -m "staging tracks develop"
 railway environment edit --service-config web source.branch develop --environment staging -m "staging tracks develop"
 railway variable set APP_ENV=staging --service api --environment staging --skip-deploys
-railway environment config --environment staging --json | jq '.services[] | select(.name=="api" or .name=="web") | {name, branch: .source.branch}'
+NAMES=$(railway service list --json | jq -c '[.[] | {id, name}]')
+railway environment config --environment staging --json | jq --argjson names "$NAMES" '
+  ($names | map({(.id): .name}) | add) as $id2name
+  | .services
+  | to_entries[]
+  | select($id2name[.key] == "api" or $id2name[.key] == "web")
+  | {name: $id2name[.key], branch: .value.source.branch}
+'
 ```
+
+In `environment config --json`, `.services` is an object keyed by service ID and each entry has no `name` field, so filtering on `.name` prints nothing; the id-to-name join above reads `railway service list --json` for the mapping. Expected output, two objects: `{"name":"api","branch":"develop"}` and `{"name":"web","branch":"develop"}`.
 
 Secrets for staging are pasted again by Mike with the same four commands as section 2 with `--environment staging`; staging gets its own `JWT_SECRET` and `ADMIN_TOKEN`, and the same Anthropic key unless Mike prefers a second one.
 
@@ -183,4 +192,6 @@ Expected: `version.json` shows `{ "commit": "<sha>", "builtAt": "<iso>" }` where
 
 ## Rollback
 
-Dashboard: service, Deployments tab, the previous successful deployment, its menu, Redeploy. CLI equivalent for the latest deployment: `railway redeploy --service api --environment production --yes`. Safe because migrations are additive only (API ADR 0004): the previous application runs against the already-migrated database.
+Rollback is a dashboard-only action: service `api` (or `web`), Deployments tab, the previous successful deployment, its menu, Redeploy. Safe because migrations are additive only (API ADR 0004): the previous application runs against the already-migrated database.
+
+`railway redeploy --service api --environment production --yes` is **not** a rollback. Railway CLI 5.49.5 documents `redeploy` (and its alias `railway deployment redeploy`) as redeploying only the _latest_ deployment of a service (`railway redeploy --help`: "Redeploy the latest deployment of a service"), and neither command nor `railway deployment list` accepts a deployment ID to target, so the CLI cannot reach an older deployment. Use `railway redeploy` only to restart the current deployment (for example after a variable change), never to go back to a previous one.
