@@ -53,7 +53,12 @@ SCRATCH=/private/tmp/claude-502/-Users-Mike-Bogdanovsky-Projects-nice-product-wo
 TRAILER="Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01HWmLNo9LBp2SgKdYisfRoJ"
 ```
-- Scripts are tested with `--dry-run` or a fixture root before any GitHub or Railway resource exists. The real runs against GitHub happen in the CI/CD lane (`docs/superpowers/plans/2026-09-08-kaizen-tasks-cicd.md`) and at integration.
+- Scripts are tested with `--dry-run` or a fixture root, never against GitHub or Railway from this lane. The real runs against GitHub happen in the CI/CD lane (`docs/superpowers/plans/2026-09-08-kaizen-tasks-cicd.md`) and at integration.
+- Facts that already hold on 2026-09-08 (master plan section 2, L3-M0 status), which no task may contradict:
+  - The four GitHub repos `kpnemo/kaizen-tasks-api`, `kpnemo/kaizen-tasks-web`, `kpnemo/kaizen-tasks-assembly-line`, `kpnemo/kaizen-tasks-product-skills` exist, public, with `develop` as the default branch. `backend/` and `frontend/` are already checkouts of the two app repos (HTTPS remotes) on `develop`.
+  - Railway project `kaizen-tasks` (id `67adb3e0-f2af-4ad3-bbaa-32ec8a53b10e`) has `staging` and `production`, each with `Postgres`, `Redis`, `api` from `kaizen-tasks-api`, and `web` from `kaizen-tasks-web` on that environment's branch (`develop`, `main`). Wait-for-CI is on for `api` and `web` in both environments through the service config field `source.checkSuites`; healthchecks are set; `web` has `PORT=8080`; `ANTHROPIC_API_KEY` is the placeholder `REPLACE_ME_WITH_REAL_KEY` until Mike replaces it.
+  - Web domains: staging `https://web-staging-52c0.up.railway.app`, production `https://web-production-7ef71.up.railway.app`. Every document written by this plan uses these values; they are facts, not placeholders.
+  - Still open in L3-M0: the label set (this plan's Task 4 script, run for real by the CI/CD lane's Task 3) and the real Anthropic key.
 
 ## File structure
 
@@ -318,7 +323,7 @@ cd /Users/Mike.Bogdanovsky/Projects/nice-product-workshop-Sep.2026/webapp
 npm run check:rubric; echo "exit=$?"
 ```
 
-Expected: `grep` prints nothing and `exit=2` (file missing).
+Expected: `grep` reports `rubric/readiness.md: No such file or directory` (npm adds its own error block after it) and `exit=2`, grep's exit code for a missing file, passed through by `npm run`.
 
 - [ ] **Step 2: Write `rubric/readiness.md`**
 
@@ -643,7 +648,7 @@ git commit -m "feat: feature request issue form with validator" -m "$TRAILER"
 
 **Interfaces:**
 
-- Consumes: `gh` authenticated as `kpnemo`; the repo `kpnemo/kaizen-tasks-assembly-line` exists only after the CI/CD lane's Task 2, so this task tests with `--dry-run` and the real run happens there.
+- Consumes: `gh` authenticated as `kpnemo`. The repo `kpnemo/kaizen-tasks-assembly-line` exists on GitHub since 2026-09-08 (CI/CD lane Task 2, done), but this task still tests only with `--dry-run`; the real run against GitHub is the CI/CD lane's Task 3 (Labels), the one step of L3-M0 still open.
 - Produces: labels `feature-request`, `clarity:1..5`, `complexity:1..5`, `risk:1..5`, `arch-change`, `triaged`, `implementing`, `shipped`, `triage-board` (master plan interface "Labels"); one pinned open issue titled `Triage board` labeled `triage-board` whose body starts with `<!-- kaizen-triage-board -->` (rewritten by Task 9's skill).
 
 - [ ] **Step 1: Write the script**
@@ -897,8 +902,9 @@ Write `scripts/seed-requests.sh`:
 # File seeds/requests/*.md as feature-request issues. Skips a seed whose title already exists as an open issue.
 # Usage: scripts/seed-requests.sh [--dry-run]
 #   REPO=<owner/name> overrides the target (default kpnemo/kaizen-tasks-assembly-line).
-# Seed format: a front matter block with a `title:` line (not quoted), then the body in the issue form's
-# section structure (### Problem, ### Proposed behavior, ### Acceptance criteria, ### Out of scope, ### Your role).
+# Seed format: a front matter block with a `title:` line (plain or quoted; one layer of surrounding quotes is
+# stripped so a YAML formatter cannot change the issue title), then the body in the issue form's section
+# structure (### Problem, ### Proposed behavior, ### Acceptance criteria, ### Out of scope, ### Your role).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -918,6 +924,10 @@ for seed in "$ROOT"/seeds/requests/*.md; do
   name="$(basename "$seed")"
   # Front matter is between the first line (---) and the next --- line.
   title="$(sed -n '2,/^---$/p' "$seed" | sed -n 's/^title:[[:space:]]*//p' | head -1)"
+  case "$title" in
+    \"*\") title="${title#\"}"; title="${title%\"}" ;;
+    \'*\') title="${title#\'}"; title="${title%\'}" ;;
+  esac
   if [ -z "$title" ]; then
     echo "SKIP     $name: no title: line in the front matter" >&2
     continue
@@ -960,7 +970,7 @@ sed -n '2,/^---$/p' seeds/requests/01-mark-all-done.md | sed -n 's/^title:[[:spa
 awk 'f >= 2 { print } /^---$/ { f++ }' seeds/requests/02-smarter-ai.md | sed '1{/^$/d;}' | head -3
 ```
 
-Expected: `syntax ok`; four `WOULD CREATE` lines in file order, the first being `WOULD CREATE  Add a "Mark all steps done" button on the task detail  [01-mark-all-done.md, 27 body lines]` (line counts may differ by one); the title line printed alone; the body preview starts with `### Problem`.
+Expected: `syntax ok`; four lines in file order, each `WOULD CREATE` (or `SKIP     <title> (an open issue with this title exists)` for a seed that has already been filed, since the repo exists and `gh` is logged in), the first being `WOULD CREATE  Add a "Mark all steps done" button on the task detail  [01-mark-all-done.md, 25 body lines]` (the count may differ by one); the title line printed alone, without surrounding quotes; the body preview starts with `### Problem`.
 
 - [ ] **Step 4: Prove the skip logic with a fake `gh`**
 
@@ -985,13 +995,14 @@ Expected: three `WOULD CREATE` lines and one `SKIP     Make the AI smarter (an o
 - [ ] **Step 5: Commit (L4-M1 ends here)**
 
 ```bash
-npx prettier --check seeds/requests/*.md
+npx prettier --write seeds/requests/*.md
+scripts/seed-requests.sh --dry-run | grep -c 'Add a "Mark all steps done" button on the task detail'
 git add seeds/requests scripts/seed-requests.sh
 git commit -m "feat: four seeded requests and the seed script" -m "$TRAILER"
 git log --oneline -6
 ```
 
-Expected: five new commits on `develop` since the master plan commit. **L4-M1 is complete**: `rubric/readiness.md` with `version: 1`, the issue form, `scripts/setup-labels.sh`, four seeds, and root `CLAUDE.md` are committed on `develop`. Tell the orchestrator so L5 can vendor the rubric and the CI/CD lane can run the labels script once the GitHub repo exists.
+Expected: the grep prints `1` (the title survives formatting without quotes); five new commits on `develop` since the review-fixes commit. **L4-M1 is complete**: `rubric/readiness.md` with `version: 1`, the issue form, `scripts/setup-labels.sh`, four seeds, and root `CLAUDE.md` are committed on `develop`. Tell the orchestrator so L5 can vendor the rubric and the CI/CD lane can run the labels script (its Task 3; the GitHub repo already exists).
 
 ---
 
@@ -1003,7 +1014,7 @@ Expected: five new commits on `develop` since the master plan commit. **L4-M1 is
 
 **Interfaces:**
 
-- Consumes: GitHub repos `kpnemo/kaizen-tasks-api` and `kpnemo/kaizen-tasks-web` (created by the CI/CD lane's Task 2; before that, the clone step is exercised only in dry-run).
+- Consumes: GitHub repos `kpnemo/kaizen-tasks-api` and `kpnemo/kaizen-tasks-web` (exist since 2026-09-08, CI/CD lane Task 2). Locally both are already checked out (`backend/` and `frontend/` are git checkouts with HTTPS remotes), so the clone branch is exercised only in a fixture root in dry-run.
 - Produces: `backend/` and `frontend/` checkouts, Node 24 active, databases `kaizen_dev` and `kaizen_test`, `node_modules` in both.
 
 - [ ] **Step 1: Write the script**
@@ -1117,7 +1128,7 @@ bash -n scripts/setup-workspace.sh && echo "syntax ok"
 scripts/setup-workspace.sh --dry-run
 ```
 
-Expected: `syntax ok`; `OK    backend is a git checkout` and `OK    frontend is a git checkout` (both exist locally); `DRY-RUN: nvm install 24 && nvm use 24`; `OK    Postgres answers`, `OK    Redis answers` (or `WARN` lines if a service is stopped); `DRY-RUN: createdb kaizen_dev` and `DRY-RUN: createdb kaizen_test` or `OK` lines if they exist; `SKIP  backend has no package.json yet` until L1-M1 lands; the `== Next` block.
+Expected: `syntax ok`; `OK    backend is a git checkout` and `OK    frontend is a git checkout` (both exist locally); `DRY-RUN: nvm install 24 && nvm use 24`; `OK    Postgres answers`, `OK    Redis answers` (or `WARN` lines if a service is stopped); `DRY-RUN: createdb kaizen_dev` and `DRY-RUN: createdb kaizen_test` or `OK` lines if they exist; `SKIP  backend has no package.json yet` (or `DRY-RUN: npm ci` once L1-M1 has landed), the same for `frontend`; the `== Next` block. The `OK    node` line shows whatever `node` is on the PATH, since a dry run does not switch versions.
 
 Then prove the clone branch with a fixture root:
 
@@ -1244,7 +1255,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.SMOKE_BASE_URL;
 if (!baseURL) {
-  throw new Error("SMOKE_BASE_URL is required, for example SMOKE_BASE_URL=https://web-staging.up.railway.app");
+  throw new Error("SMOKE_BASE_URL is required, for example SMOKE_BASE_URL=https://web-staging-52c0.up.railway.app");
 }
 const aiTimeoutMs = Number(process.env.SMOKE_AI_TIMEOUT_MS ?? "90000");
 if (!Number.isFinite(aiTimeoutMs) || aiTimeoutMs <= 0) {
@@ -1496,7 +1507,7 @@ The test finds elements by accessible role and name, never by CSS class. The web
 - run: npm test
   working-directory: assembly-line/smoke
   env:
-    SMOKE_BASE_URL: https://<staging web domain>
+    SMOKE_BASE_URL: https://web-staging-52c0.up.railway.app
     SMOKE_AI_TIMEOUT_MS: "90000"
 - uses: actions/upload-artifact@v5
   if: failure()
@@ -1530,8 +1541,8 @@ Expected: `git status` shows nothing untracked under `smoke/` except ignored `no
 
 **Interfaces:**
 
-- Consumes: master plan interface "Docs-check": each nested repo has `scripts/docs-check.sh --hook` that exits 2 on failure with the fix list on stdout, owns its three-strike counter `.claude/.docs-check-blocks` and marker `.claude/DOCS-CHECK-FAILED`. Root prettier from Task 1. `jq` (present at `/usr/bin/jq`).
-- Produces: a Stop hook that blocks the root session (exit 2) when any nested repo with changes fails its docs-check; a PostToolUse hook that formats edited files with the owning repo's prettier. `KAIZEN_WORKSPACE_ROOT` env override for fixture tests.
+- Consumes: master plan interface "Docs-check": each nested repo has `scripts/docs-check.sh --hook` that exits 2 on failure with the fix list on stdout, owns its three-strike counter `.claude/.docs-check-blocks` and marker `.claude/DOCS-CHECK-FAILED`, and after the third consecutive block stops blocking but never exits 0 while printing FAILED (API spec section 8.2: it prints `DOCS CHECK FAILED, human intervention required`, writes the marker, and exits non-zero but not 2). Claude Code hook facts from the official hooks reference: the Stop hook's stdin JSON carries `stop_hook_active`, true when Claude Code is already continuing because a Stop hook blocked; exit 2 blocks the stop and feeds stderr to the model; any other non-zero exit is non-blocking; `timeout` is in seconds; hook events sit under a top-level `hooks` key in `.claude/settings.json`. Root prettier from Task 1. `jq` (present at `/usr/bin/jq`).
+- Produces: a Stop hook that blocks the root session (exit 2) when any nested repo with changes fails its docs-check, passes a nested escape hatch through as non-blocking (exit 1), and can never loop on a repo that has already given up; a PostToolUse hook that formats edited files with the owning repo's prettier. `KAIZEN_WORKSPACE_ROOT` env override for fixture tests.
 
 - [ ] **Step 1: Build a fixture workspace and the failing test**
 
@@ -1540,17 +1551,24 @@ Run:
 ```bash
 FX="$SCRATCH/hooks-fixture"; rm -rf "$FX"; mkdir -p "$FX/backend/scripts" "$FX/frontend"
 git -C "$FX/backend" init -q -b develop
+printf '.claude/\n' > "$FX/backend/.gitignore"    # the nested counter and marker live in .claude/; ignored so run 8 below sees a clean tree
 cat >"$FX/backend/scripts/docs-check.sh" <<'EOF'
 #!/usr/bin/env bash
+# Fixture stand-in for a nested repo's scripts/docs-check.sh. DOCS_CHECK_FIXTURE_RESULT selects the outcome:
+#   fail  (default) a rule fails: fix list on stdout, exit 2 (blocking)
+#   pass  everything is fine: marker removed, exit 0
+#   hatch the nested three-strike escape hatch has fired: banner, marker written, exit 1 (non-blocking)
+#   stuck a misbehaving nested script: marker written but still exit 2
 input="$(cat)"
 echo "cwd=$(pwd)"
 echo "stop_hook_active=$(printf '%s' "$input" | jq -r '.stop_hook_active')"
-if [ "${DOCS_CHECK_FIXTURE_RESULT:-fail}" = "fail" ]; then
-  echo "Rule A: add a bullet under [Unreleased] in CHANGELOG.md"
-  exit 2
-fi
-echo "docs-check OK"
-exit 0
+mkdir -p .claude
+case "${DOCS_CHECK_FIXTURE_RESULT:-fail}" in
+  pass)  rm -f .claude/DOCS-CHECK-FAILED; echo "docs-check OK"; exit 0 ;;
+  hatch) echo "Rule A" > .claude/DOCS-CHECK-FAILED; echo "DOCS CHECK FAILED, human intervention required"; exit 1 ;;
+  stuck) echo "Rule A" > .claude/DOCS-CHECK-FAILED; echo "Rule A: add a bullet under [Unreleased] in CHANGELOG.md"; exit 2 ;;
+  *)     echo "Rule A: add a bullet under [Unreleased] in CHANGELOG.md"; exit 2 ;;
+esac
 EOF
 chmod +x "$FX/backend/scripts/docs-check.sh"
 git -C "$FX/backend" add -A && git -C "$FX/backend" -c user.email=t@t -c user.name=t commit -qm init
@@ -1568,13 +1586,29 @@ Expected: `bash: scripts/docs-check-all.sh: No such file or directory` and `exit
 #!/usr/bin/env bash
 # Root Stop hook: run each nested repo's docs-check when that repo has changes.
 # Usage: scripts/docs-check-all.sh --hook
-#   stdin: the Stop hook JSON from Claude Code ({"hook_event_name":"Stop","stop_hook_active":bool,...}).
-#          It is forwarded unchanged to each nested script so a nested script may read stop_hook_active.
+#   stdin: the Stop hook JSON from Claude Code, for example
+#          {"hook_event_name":"Stop","stop_hook_active":false,"session_id":"...","cwd":"..."}.
+#          It is forwarded unchanged to each nested script.
 #   KAIZEN_WORKSPACE_ROOT=<dir> overrides the workspace root (used by the fixture test).
-# Exit 2 when any nested check fails: Claude Code blocks the stop and feeds stderr back to the model.
-# Exit 0 otherwise. This script adds no rules of its own. Each nested scripts/docs-check.sh owns its rules,
-# its three-strike escape hatch (.claude/.docs-check-blocks) and its marker file (.claude/DOCS-CHECK-FAILED);
-# a nested exit 0 after the escape hatch is passed through as a pass here, exactly as it is in that repo.
+#
+# Exit code, mapped from the nested scripts (master plan section 4, "Docs-check"):
+#   every nested exit 0, or no nested repo with changes  -> exit 0, report on stdout
+#   any nested exit 2                                    -> exit 2, report on stderr: Claude Code blocks the stop
+#                                                           and feeds stderr back to the model
+#   otherwise (a nested exit that is neither 0 nor 2)    -> exit 1, report on stderr, non-blocking. This is the
+#                                                           nested escape hatch: after three consecutive blocks a
+#                                                           nested docs-check stops blocking, prints its banner
+#                                                           "DOCS CHECK FAILED, human intervention required",
+#                                                           writes .claude/DOCS-CHECK-FAILED, and exits non-zero
+#                                                           without exiting 2. A failure is never turned into
+#                                                           exit 0 here.
+#
+# stop_hook_active is true when Claude Code is already continuing because a Stop hook blocked. This script keeps
+# checking when it is true (skipping would let a real failure through on the second attempt); the nested
+# three-strike counter is the loop guard. As a safety net it reads the flag and, when it is true and a nested
+# repo carries the marker .claude/DOCS-CHECK-FAILED after its run, treats that repo as escape-hatched (exit 1,
+# not 2) even if the nested script exited 2, so a root session can never loop on a repo that has already given
+# up. This script adds no docs rules of its own.
 set -uo pipefail
 
 if [ "${1:-}" != "--hook" ]; then
@@ -1584,6 +1618,8 @@ fi
 
 ROOT="${KAIZEN_WORKSPACE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 HOOK_INPUT="$(cat 2>/dev/null || true)"
+STOP_HOOK_ACTIVE="$(printf '%s' "$HOOK_INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo false)"
+if [ "$STOP_HOOK_ACTIVE" != "true" ]; then STOP_HOOK_ACTIVE=false; fi
 
 # A repo "has changes" when the working tree is dirty or HEAD has commits beyond its base
 # (merge-base with origin/develop, else local develop).
@@ -1599,8 +1635,9 @@ has_changes() {
   return 1
 }
 
-failed=0
-report=""
+blocked=0
+hatched=0
+report="stop_hook_active=$STOP_HOOK_ACTIVE"$'\n'
 for name in backend frontend; do
   repo="$ROOT/$name"
   if [ ! -d "$repo/.git" ]; then continue; fi
@@ -1614,35 +1651,71 @@ for name in backend frontend; do
   fi
   output="$(cd "$repo" && printf '%s' "$HOOK_INPUT" | bash scripts/docs-check.sh --hook 2>&1)"
   code=$?
-  prefixed="$(printf '%s\n' "$output" | sed "s/^/[$name] /")"
-  report="$report$prefixed"$'\n'
-  if [ "$code" -ne 0 ]; then
-    failed=1
-    report="$report[$name] docs-check exit $code"$'\n'
+  report="$report$(printf '%s\n' "$output" | sed "s/^/[$name] /")"$'\n'
+  if [ "$code" -eq 0 ]; then
+    continue
+  fi
+  if [ "$code" -eq 2 ] && [ "$STOP_HOOK_ACTIVE" = true ] && [ -f "$repo/.claude/DOCS-CHECK-FAILED" ]; then
+    report="$report[$name] exit 2 with the marker .claude/DOCS-CHECK-FAILED present while stop_hook_active is true: treated as the escape hatch, not blocking again"$'\n'
+    code=1
+  fi
+  if [ "$code" -eq 2 ]; then
+    blocked=1
+    report="$report[$name] docs-check exit 2, blocking the stop"$'\n'
+  else
+    hatched=1
+    report="$report[$name] docs-check exit $code, escape hatch, not blocking"$'\n'
   fi
 done
 
-if [ "$failed" -ne 0 ]; then
+if [ "$blocked" -ne 0 ]; then
   printf '%s' "$report" >&2
   exit 2
+fi
+if [ "$hatched" -ne 0 ]; then
+  printf '%s' "$report" >&2
+  exit 1
 fi
 printf '%s' "$report"
 exit 0
 ```
 
-- [ ] **Step 3: Run the fixture test (this is verification item L2)**
+- [ ] **Step 3: Run the fixture sequence (verification item L2 and the exit-code contract)**
 
-Run:
+Run (one tool call, so `$FX` is defined):
 
 ```bash
+FX="$SCRATCH/hooks-fixture"
 chmod +x scripts/docs-check-all.sh
-echo '{"hook_event_name":"Stop","stop_hook_active":false}' | KAIZEN_WORKSPACE_ROOT="$FX" bash scripts/docs-check-all.sh --hook; echo "exit=$?"
-echo '{"hook_event_name":"Stop","stop_hook_active":true}' | DOCS_CHECK_FIXTURE_RESULT=pass KAIZEN_WORKSPACE_ROOT="$FX" bash scripts/docs-check-all.sh --hook; echo "exit=$?"
+J0='{"hook_event_name":"Stop","stop_hook_active":false}'
+J1='{"hook_event_name":"Stop","stop_hook_active":true}'
+run() { echo "-- $1"; shift; "$@"; echo "exit=$?"; }
+run "1 fail, first attempt"                 env KAIZEN_WORKSPACE_ROOT="$FX" bash -c "echo '$J0' | bash scripts/docs-check-all.sh --hook"
+run "2 fail again, stop_hook_active true"   env KAIZEN_WORKSPACE_ROOT="$FX" bash -c "echo '$J1' | bash scripts/docs-check-all.sh --hook"
+run "3 nested escape hatch"                 env DOCS_CHECK_FIXTURE_RESULT=hatch KAIZEN_WORKSPACE_ROOT="$FX" bash -c "echo '$J1' | bash scripts/docs-check-all.sh --hook"
+run "4 stuck nested, stop_hook_active true" env DOCS_CHECK_FIXTURE_RESULT=stuck KAIZEN_WORKSPACE_ROOT="$FX" bash -c "echo '$J1' | bash scripts/docs-check-all.sh --hook"
+run "5 stuck nested, fresh stop"            env DOCS_CHECK_FIXTURE_RESULT=stuck KAIZEN_WORKSPACE_ROOT="$FX" bash -c "echo '$J0' | bash scripts/docs-check-all.sh --hook"
+run "6 pass clears the marker"              env DOCS_CHECK_FIXTURE_RESULT=pass KAIZEN_WORKSPACE_ROOT="$FX" bash -c "echo '$J1' | bash scripts/docs-check-all.sh --hook"
+ls "$FX/backend/.claude/"
+run "7 stdin is not JSON"                   env KAIZEN_WORKSPACE_ROOT="$FX" bash -c "echo 'not json' | bash scripts/docs-check-all.sh --hook"
 rm "$FX/backend/src.txt"
-echo '{}' | KAIZEN_WORKSPACE_ROOT="$FX" bash scripts/docs-check-all.sh --hook; echo "exit=$?"
+run "8 no changes"                          env KAIZEN_WORKSPACE_ROOT="$FX" bash -c "echo '{}' | bash scripts/docs-check-all.sh --hook"
+run "9 without --hook"                      bash scripts/docs-check-all.sh
 ```
 
-Expected, first run (on stderr): `[backend] cwd=<...>/hooks-fixture/backend`, `[backend] stop_hook_active=false`, `[backend] Rule A: add a bullet under [Unreleased] in CHANGELOG.md`, `[backend] docs-check exit 2`, `[frontend] scripts/docs-check.sh not found, skipped`, then `exit=2`. The `cwd=` line ending in `/backend` proves L2: the nested script runs with the nested repo as its working directory, so its counter and marker files land in the nested `.claude/`. Second run (on stdout): `[backend] cwd=...`, `[backend] stop_hook_active=true`, `[backend] docs-check OK`, `[frontend] scripts/docs-check.sh not found, skipped`, `exit=0`. Third run: `[backend] no changes, docs-check skipped`, `[frontend] scripts/docs-check.sh not found, skipped`, `exit=0`. Record in the task report: "L2 verified by fixture; fallback `--repo <path>` not needed."
+Expected, in order. Every report starts with a `stop_hook_active=<value>` line and ends with `[frontend] scripts/docs-check.sh not found, skipped`; reports for exit 1 and 2 go to stderr, for exit 0 to stdout.
+
+1. `[backend] cwd=<...>/hooks-fixture/backend`, `[backend] stop_hook_active=false`, `[backend] Rule A: add a bullet under [Unreleased] in CHANGELOG.md`, `[backend] docs-check exit 2, blocking the stop`; `exit=2`. The `cwd=` line ending in `/backend` proves L2: the nested script runs with the nested repo as its working directory, so its counter and marker files land in the nested `.claude/`.
+2. The same with `stop_hook_active=true`; `exit=2`. A real failure still blocks on the second attempt; the flag alone never disarms the hook.
+3. `[backend] DOCS CHECK FAILED, human intervention required`, `[backend] docs-check exit 1, escape hatch, not blocking`; `exit=1`. Non-blocking: the session may stop and the banner reaches the user.
+4. `[backend] exit 2 with the marker .claude/DOCS-CHECK-FAILED present while stop_hook_active is true: treated as the escape hatch, not blocking again`, then `[backend] docs-check exit 1, escape hatch, not blocking`; `exit=1`.
+5. `[backend] docs-check exit 2, blocking the stop`; `exit=2`. The marker alone does not disarm a fresh stop.
+6. `[backend] docs-check OK`; `exit=0`; the `ls` prints nothing because the marker is gone.
+7. `stop_hook_active=false` (invalid JSON defaults to false), one `[backend] jq: parse error` line from the fixture, `[backend] docs-check exit 2, blocking the stop`; `exit=2`.
+8. `[backend] no changes, docs-check skipped`; `exit=0`.
+9. The usage line on stderr; `exit=1`.
+
+Record in the task report: "L2 verified by fixture; fallback `--repo <path>` not needed."
 
 - [ ] **Step 4: Write `scripts/format-file.sh` and its failing test**
 
@@ -1679,13 +1752,15 @@ if [ ! -f "$file" ]; then exit 0; fi
 
 format_in() { # repo file
   local repo="$1" target="$2"
-  if [ ! -d "$repo/node_modules/prettier" ]; then
+  if [ ! -x "$repo/node_modules/.bin/prettier" ]; then
     echo "format-file: prettier is not installed in $repo, skipped $target"
     return 0
   fi
-  (cd "$repo" && npx --no-install prettier --write --ignore-unknown --log-level warn "$target") \
-    && echo "format-file: formatted $target with $repo/node_modules/.bin/prettier" \
-    || echo "format-file: prettier failed on $target"
+  if (cd "$repo" && ./node_modules/.bin/prettier --write --ignore-unknown --log-level warn "$target"); then
+    echo "format-file: formatted $target with $repo/node_modules/.bin/prettier"
+  else
+    echo "format-file: prettier failed on $target"
+  fi
 }
 
 case "$file" in
@@ -1702,6 +1777,7 @@ exit 0
 Run:
 
 ```bash
+FX="$SCRATCH/hooks-fixture"
 chmod +x scripts/format-file.sh
 echo "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$SCRATCH/note.md\"}}" | bash scripts/format-file.sh; echo "exit=$?"
 cat "$SCRATCH/note.md"
@@ -1745,7 +1821,19 @@ Expected: first run prints `format-file: formatted .../note.md with .../webapp/n
 }
 ```
 
-Validate: `jq . .claude/settings.json >/dev/null && echo "settings json ok"`. Expected: `settings json ok`. Note for the executor: hooks load at session start, so a running Claude Code session must be restarted to pick them up; `/hooks` lists what loaded.
+The shape is the settings format from the official hooks reference: events under a top-level `hooks` key, `timeout` in seconds, and no `matcher` on the Stop entry because Stop ignores matchers.
+
+Validate the file and run each hook command exactly as Claude Code will, with `$CLAUDE_PROJECT_DIR` set:
+
+```bash
+FX="$SCRATCH/hooks-fixture"
+jq -e '.hooks.Stop[0].hooks[0].type == "command" and .hooks.PostToolUse[0].matcher == "Edit|Write"' .claude/settings.json && echo "settings shape ok"
+echo "change" > "$FX/backend/src.txt"
+echo '{"hook_event_name":"Stop","stop_hook_active":false}' | CLAUDE_PROJECT_DIR="$PWD" KAIZEN_WORKSPACE_ROOT="$FX" bash -c "$(jq -r '.hooks.Stop[0].hooks[0].command' .claude/settings.json)"; echo "exit=$?"
+echo "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$SCRATCH/note.md\"}}" | CLAUDE_PROJECT_DIR="$PWD" bash -c "$(jq -r '.hooks.PostToolUse[0].hooks[0].command' .claude/settings.json)"; echo "exit=$?"
+```
+
+Expected: `true` then `settings shape ok`; the Stop command prints the `[backend] ... blocking the stop` report on stderr and `exit=2`; the PostToolUse command prints `format-file: formatted .../note.md ...` and `exit=0`. This proves the command strings in the file resolve through `$CLAUDE_PROJECT_DIR`. Note for the executor: hooks load at session start, so a running Claude Code session must be restarted to pick them up; `/hooks` lists what loaded.
 
 - [ ] **Step 7: Commit**
 
@@ -2429,7 +2517,7 @@ node -e 'const y=require("yaml"); const d=y.parse(require("fs").readFileSync(".g
 npm ci && (cd smoke && npm ci && npm run lint && npm run typecheck) && npm run check:issue-form && grep -E '^version: [0-9]+$' rubric/readiness.md && echo "ALL CI STEPS PASS LOCALLY"
 ```
 
-Expected: `ci [ 'ci' ] 9`, then `ALL CI STEPS PASS LOCALLY`. The workflow itself runs on GitHub once the CI/CD lane's Task 2 creates the repo; its first green run is recorded there.
+Expected: `ci [ 'ci' ] 9`, then `ALL CI STEPS PASS LOCALLY`. The repo exists on GitHub; the workflow runs there on the first pull request or push to `main` (it does not run on pushes to `develop`, by the spec), and its first green run is recorded by the CI/CD lane.
 
 - [ ] **Step 3: Commit**
 
@@ -2449,7 +2537,7 @@ git commit -m "ci: lint and typecheck the smoke package, validate the form and t
 **Interfaces:**
 
 - Consumes: API spec section 2.4 (variable names) and 10.3, web spec section 2.3, 2.4, 8; master plan section 4 "Railway services" and section 5 (Mike's inputs); the `use-railway` skill's command surface (`railway init`, `environment new --duplicate`, `add --database`, `add --service --repo --branch`, `variable set`, `config plan/apply`, `domain`).
-- Produces: the procedure the CI/CD lane follows in `docs/superpowers/plans/2026-09-08-kaizen-tasks-cicd.md`. The two web domains are recorded in `docs/runbook.md` by that lane.
+- Produces: the procedure of record for the CI/CD lane (`docs/superpowers/plans/2026-09-08-kaizen-tasks-cicd.md`). That lane had executed most of it by the evening of 2026-09-08 (the state block at the top of the document says what is done and what is open), so the document is written to match the live project: the two known web domains are in it, wait-for-CI is the `source.checkSuites` config field with the dashboard as verification only, and `web` carries `PORT=8080`.
 
 - [ ] **Step 1: Write the document**
 
@@ -2460,14 +2548,16 @@ Write `docs/railway-setup.md`:
 
 **Scope rule.** The workshop touches exactly one Railway project, the new project `kaizen-tasks`, created by `railway init` from `backend/`. Never `railway link` to, modify, redeploy, or delete any other project in the account. Before any command that changes state, `railway status --json | jq -r .name` must print `kaizen-tasks`. Railway work follows the official `use-railway` skill (`railway setup agent`); its preflight is `railway whoami --json` and `railway status --json`.
 
+**State on 2026-09-08 evening** (master plan section 2, L3-M0 status). Sections 1 to 3, 5, and 6 below have been executed: project `kaizen-tasks` (id `67adb3e0-f2af-4ad3-bbaa-32ec8a53b10e`) exists with `staging` and `production`; each has `Postgres`, `Redis`, `api` from `kpnemo/kaizen-tasks-api`, and `web` from `kpnemo/kaizen-tasks-web` on that environment's branch; the variable set is in place with `PORT=3000` on `api` and `PORT=8080` on `web`; wait-for-CI is on through `source.checkSuites`; healthchecks are set (`/api/v1/health` on `api`, `/version.json` on `web`); the `web` domains are generated. Still open: `ANTHROPIC_API_KEY` is the placeholder `REPLACE_ME_WITH_REAL_KEY` in both environments until Mike replaces it (the paste command is in section 2), and section 4 (IaC apply) waits for L1-M1 and L2-M1. Everything below stays the procedure of record: each step is safe to repeat, and together they rebuild the project if it is ever deleted.
+
 ## Target state
 
 | Environment | Services | Source branch | Public domain |
 |---|---|---|---|
-| `production` | `api`, `web`, `Postgres`, `Redis` | `main` | `web` only |
-| `staging` | `api`, `web`, `Postgres`, `Redis` | `develop` | `web` only |
+| `production` | `api`, `web`, `Postgres`, `Redis` | `main` | `web` only: `https://web-production-7ef71.up.railway.app` |
+| `staging` | `api`, `web`, `Postgres`, `Redis` | `develop` | `web` only: `https://web-staging-52c0.up.railway.app` |
 
-`api` has no public domain. `web` proxies `/api/*` to `http://api.railway.internal:3000`; `api` pins `PORT=3000`. Wait-for-CI is on for `api` and `web` in both environments so a red check suite never deploys.
+`api` has no public domain. `web` proxies `/api/*` to `http://api.railway.internal:3000`; `api` pins `PORT=3000` and `web` pins `PORT=8080`. Wait-for-CI (`source.checkSuites: true`) is on for `api` and `web` in both environments so a red check suite never deploys.
 
 ## 1. Create the project
 
@@ -2530,6 +2620,14 @@ railway variable list --service api --environment production --json | jq -r 'key
 
 Expected names: `ADMIN_TOKEN AI_ENABLED AI_GLOBAL_LIMIT_PER_HOUR AI_MODEL AI_RATE_LIMIT_PER_HOUR AI_STALE_MINUTES ANTHROPIC_API_KEY APP_ENV DATABASE_URL JWT_SECRET LOG_LEVEL PORT REDIS_URL SEED_DEMO_PASSWORD SEED_DEMO_USER WORKER_ENABLED` plus Railway's own `RAILWAY_*` entries.
 
+Then confirm the key is real, without printing it:
+
+```bash
+railway variable list --service api --environment production --json | jq -r '.ANTHROPIC_API_KEY | startswith("REPLACE_ME")'
+```
+
+Expected `false`. On 2026-09-08 it prints `true` in both environments: the placeholder `REPLACE_ME_WITH_REAL_KEY` is set and Mike replaces it with the `ANTHROPIC_API_KEY` command above; until then every AI breakdown on Railway fails.
+
 `GITHUB_TOKEN` and `GITHUB_REPO=kpnemo/kaizen-tasks-assembly-line` are added only if the optional feature-request page ships.
 
 ## 3. Create staging by duplicating production
@@ -2579,40 +2677,46 @@ railway config plan --verbose
 railway config apply --yes
 ```
 
-`--yes` only stands in for the interactive confirmation in a non-interactive shell, and only after Mike has read the exact plan. Never pass `--confirm-destructive`; a plan that destroys anything is not applied.
+`--yes` only stands in for the interactive confirmation in a non-interactive shell, and only after Mike has read the exact plan. Never pass `--confirm-destructive`; a plan that destroys anything is not applied. After each apply, re-run the wait-for-CI read-back in section 5: the IaC file does not carry `source.checkSuites`, and the field must still read `true` afterwards.
 
 ## 5. Wait-for-CI
 
-Railway's "Wait for CI" (check suites) is not a field in the IaC file. Try the config patch first, then confirm in the dashboard:
+Wait-for-CI is the per-environment service config field `source.checkSuites` (the `use-railway` skill lists it under Source: `source.checkSuites` (boolean)). It is not declared in `.railway/railway.ts`, so it is set with `railway environment edit` and read back with `railway environment config`. It has been on for `api` and `web` in both environments since 2026-09-08 (master plan section 4, "Wait-for-CI"); the commands below are the procedure of record and are safe to repeat.
 
 ```bash
 for env in staging production; do
   railway environment edit --service-config api source.checkSuites true --environment $env -m "wait for CI"
   railway environment edit --service-config web source.checkSuites true --environment $env -m "wait for CI"
 done
-railway environment config --environment staging --json | jq '.services[] | select(.name=="api" or .name=="web") | {name, checkSuites: .source.checkSuites}'
+for env in staging production; do
+  echo "== $env"
+  railway environment config --environment $env --json | jq -c '[.. | objects | select(has("source")) | .source.checkSuites]'
+done
 ```
 
-Dashboard click path (Mike): project `kaizen-tasks`, pick the environment in the top-left selector, click the `api` service, Settings tab, Source section, toggle "Wait for CI" on; repeat for `web`; repeat in the other environment. The runbook records the exact wording seen.
+Expected per environment: `[true,true]` (or `[true,true,null,null]` when the databases are listed too). Re-run the read-back after every `railway config apply` in section 4; if an apply ever resets the field, run the loop above again.
+
+Dashboard, for verification only, never the way the field is set (Mike): project `kaizen-tasks`, environment selector top-left, service `api`, Settings, Source, the toggle named "Wait for CI" (Railway may label it "Check Suites") reads on; the same for `web`; the same in the other environment. The runbook records the exact label seen.
 
 Verification (item V4 in the API spec): push a trivial commit to `develop` in either app repo; `railway deployment list --service api --environment staging --limit 1 --json` shows status `WAITING` while GitHub Actions runs, then `BUILDING`, `DEPLOYING`, `SUCCESS`.
 
 ## 6. Public domains for `web`
 
-After the first successful deploy of `web` in each environment:
+Generated on 2026-09-08: staging `https://web-staging-52c0.up.railway.app`, production `https://web-production-7ef71.up.railway.app`. `api` never gets a domain. The procedure, for the record; read the existing domains with `railway domain list` before generating anything:
 
 ```bash
-railway domain --service web --environment staging --port 8080 --json
-railway domain --service web --environment production --port 8080 --json
 railway domain list --service web --environment staging --json
+railway domain list --service web --environment production --json
+railway domain --service web --environment staging --port 8080 --json       # only when the list above is empty
+railway domain --service web --environment production --port 8080 --json    # only when the list above is empty
 ```
 
-`api` never gets a domain. Record both `web` domains in `docs/runbook.md` (section "Fixed facts") and hand them to the app repos' `promote` workflows.
+Both domains are recorded in `docs/runbook.md` (section "Fixed facts") and are the `SMOKE_BASE_URL` of the app repos' `promote` workflows.
 
 ## 7. Verify
 
 ```bash
-STAGING=https://<staging web domain>
+STAGING=https://web-staging-52c0.up.railway.app
 curl -fsS "$STAGING/version.json" | jq .
 curl -fsS "$STAGING/api/v1/health" | jq .
 ```
@@ -2635,9 +2739,12 @@ Run:
 ```bash
 for v in DATABASE_URL REDIS_URL JWT_SECRET ANTHROPIC_API_KEY AI_MODEL AI_RATE_LIMIT_PER_HOUR AI_GLOBAL_LIMIT_PER_HOUR AI_ENABLED AI_STALE_MINUTES ADMIN_TOKEN APP_ENV PORT WORKER_ENABLED SEED_DEMO_USER SEED_DEMO_PASSWORD LOG_LEVEL GITHUB_TOKEN GITHUB_REPO; do grep -q "$v" docs/railway-setup.md || echo "MISSING $v"; done; echo "variable check done"
 grep -c 'kaizen-tasks' docs/railway-setup.md
+grep -c 'source.checkSuites' docs/railway-setup.md
+grep -c 'web-staging-52c0.up.railway.app\|web-production-7ef71.up.railway.app' docs/railway-setup.md
+grep -n -i 'dashboard' docs/railway-setup.md
 ```
 
-Expected: no `MISSING` lines, `variable check done`, a count above 10.
+Expected: no `MISSING` lines, `variable check done`, a `kaizen-tasks` count above 10, a `source.checkSuites` count of at least 4, a domain count of at least 4, and every `dashboard` line is about verification, the GitHub App, a variable change, or rollback; none says wait-for-CI is switched on there.
 
 - [ ] **Step 3: Commit**
 
@@ -2658,7 +2765,7 @@ git commit -m "docs: Railway setup procedure for the kaizen-tasks project" -m "$
 **Interfaces:**
 
 - Consumes: master plan interfaces "Health", "Web version", "Seed reset" (`POST /api/v1/admin/seed-reset` with header `x-admin-token`, demo user `demo@kaizen.local`); the smoke package (Task 7); the skills (Tasks 9 to 11); `docs/railway-setup.md` (Task 14); the product-skills repo layout (`templates/part3/facilitator-sheet.md`).
-- Produces: the runbook. The "Fixed facts" table has two rows the CI/CD lane fills at L3-M1 (the two web domains) and one row the rehearsal fills (timings). These are the only fields left open, by design.
+- Produces: the runbook. The "Fixed facts" table carries the two web domains, known since 2026-09-08; the only row left open, by design, is the rehearsal timings.
 
 - [ ] **Step 1: Write the runbook**
 
@@ -2673,8 +2780,8 @@ Three hours: Part 1 live run (75 minutes), Part 2 hands-on (60 minutes), Part 3 
 
 | Fact | Value |
 |---|---|
-| Production web | `https://<production web domain>` (filled by the CI/CD lane at L3-M1) |
-| Staging web | `https://<staging web domain>` (filled by the CI/CD lane at L3-M1) |
+| Production web | https://web-production-7ef71.up.railway.app |
+| Staging web | https://web-staging-52c0.up.railway.app |
 | Issue form | https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new?template=feature-request.yml |
 | Triage board | the pinned issue in https://github.com/kpnemo/kaizen-tasks-assembly-line/issues |
 | Demo user | `demo@kaizen.local`, password is the `SEED_DEMO_PASSWORD` Railway variable |
@@ -2688,6 +2795,7 @@ Terminals to have open before the session, all at `webapp/`: T1 Claude Code (`cl
 ### T minus one day
 
 - [ ] Keys and variables present in both environments: `railway variable list --service api --environment production --json | jq -r 'keys[]'` and the same for `staging` list every name in `docs/railway-setup.md` section 2.
+- [ ] The Anthropic key is real, not the placeholder: `railway variable list --service api --environment production --json | jq -r '.ANTHROPIC_API_KEY | startswith("REPLACE_ME")'` prints `false`, and the same for `staging` (the value itself is never printed).
 - [ ] Seeds filed: `gh issue list --repo kpnemo/kaizen-tasks-assembly-line --label feature-request --state open` shows the four seed titles (run `/seed-requests` if not).
 - [ ] Triage board pinned: `gh issue list --repo kpnemo/kaizen-tasks-assembly-line --label triage-board --json number,isPinned` shows `"isPinned": true`.
 - [ ] Triage run today: `/triage-requests`; the board shows 01 first, 04 second, 03 last with `arch-change`.
@@ -2695,7 +2803,7 @@ Terminals to have open before the session, all at `webapp/`: T1 Claude Code (`cl
 
 ```bash
 for env in staging production; do
-  case $env in staging) url=https://<staging web domain>; ref=origin/develop ;; production) url=https://<production web domain>; ref=origin/main ;; esac
+  case $env in staging) url=https://web-staging-52c0.up.railway.app; ref=origin/develop ;; production) url=https://web-production-7ef71.up.railway.app; ref=origin/main ;; esac
   echo "== $env"; echo "web  $(curl -fsS $url/version.json | jq -r .commit)  expected $(git -C frontend rev-parse $ref)"
   echo "api  $(curl -fsS $url/api/v1/health | jq -r .data.commit)  expected $(git -C backend rev-parse $ref)"
 done
@@ -2707,8 +2815,8 @@ done
 ### T minus one hour
 
 - [ ] Raise the session budget on production: `railway variable set AI_GLOBAL_LIMIT_PER_HOUR=600 --service api --environment production` (redeploys `api`; wait for `SUCCESS` in `railway deployment list --service api --environment production --limit 1 --json`).
-- [ ] Reset the demo user on production, in Mike's terminal with his token: `curl -fsS -X POST https://<production web domain>/api/v1/admin/seed-reset -H "x-admin-token: $ADMIN_TOKEN" | jq .` prints `{ "data": { "demoUserId": "<uuid>" } }`.
-- [ ] Smoke green against both environments in the last hour: `cd smoke && SMOKE_BASE_URL=https://<staging web domain> npm test && SMOKE_BASE_URL=https://<production web domain> npm test`.
+- [ ] Reset the demo user on production, in Mike's terminal with his token: `curl -fsS -X POST https://web-production-7ef71.up.railway.app/api/v1/admin/seed-reset -H "x-admin-token: $ADMIN_TOKEN" | jq .` prints `{ "data": { "demoUserId": "<uuid>" } }`.
+- [ ] Smoke green against both environments in the last hour: `cd smoke && SMOKE_BASE_URL=https://web-staging-52c0.up.railway.app npm test && SMOKE_BASE_URL=https://web-production-7ef71.up.railway.app npm test`.
 - [ ] Log in as the demo user in the production tab; the tour tasks are there.
 - [ ] `gh auth status` and `railway whoami` succeed in T2. Claude Code open at `webapp/` in T1 with `/hooks` showing the Stop and PostToolUse hooks.
 - [ ] Projector font size checked: terminal at 18pt or larger, browser zoom 125%.
@@ -2730,11 +2838,11 @@ Commands used in the Ship segment, in order:
 gh pr view <pr url> --json statusCheckRollup --jq '.statusCheckRollup[] | "\(.name) \(.conclusion)"'
 gh pr merge <pr url> --squash --delete-branch                      # Mike, after checks are green
 railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'
-curl -fsS https://<staging web domain>/version.json | jq -r .commit
+curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r .commit
 gh pr create --repo kpnemo/kaizen-tasks-web --base main --head develop --title "release: <date>" --body "Promote develop to main"
 gh pr checks <promote pr url> --watch
 gh pr merge <promote pr url> --merge                                # Mike
-curl -fsS https://<production web domain>/version.json | jq -r .commit
+curl -fsS https://web-production-7ef71.up.railway.app/version.json | jq -r .commit
 gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state --jq .state   # expect CLOSED (verification L1)
 gh issue edit <n> --repo kpnemo/kaizen-tasks-assembly-line --add-label shipped --remove-label implementing
 ```
@@ -2810,9 +2918,11 @@ Run:
 for h in "Pre-session checklist" "minute by minute" "What to say at each gate" "Failure page" "Rollback" "Part 2 handoff" "Part 3 handoff"; do grep -q "$h" docs/runbook.md || echo "MISSING $h"; done; echo "sections checked"
 grep -c '^| [0-9]* to [0-9]* |' docs/runbook.md
 grep -n 'seed-reset\|x-admin-token' docs/runbook.md | head -3
+grep -c 'web-staging-52c0.up.railway.app\|web-production-7ef71.up.railway.app' docs/runbook.md
+grep -c '<[a-z]* web domain>' docs/runbook.md
 ```
 
-Expected: `sections checked` with no `MISSING`; `6` segment rows; the seed-reset curl found.
+Expected: `sections checked` with no `MISSING`; `6` segment rows; the seed-reset curl found; at least `8` lines carrying a real domain; `0` domain placeholders.
 
 - [ ] **Step 3: Commit**
 
@@ -2842,7 +2952,7 @@ Run:
 ```bash
 cd /Users/Mike.Bogdanovsky/Projects/nice-product-workshop-Sep.2026/webapp/smoke
 source "$HOME/.nvm/nvm.sh" && nvm use
-SMOKE_BASE_URL=https://<staging web domain> npm test
+SMOKE_BASE_URL=https://web-staging-52c0.up.railway.app npm test
 ```
 
 Expected: `1 passed`, with the six steps listed by the `list` reporter. If step 4 times out, rerun with `SMOKE_AI_TIMEOUT_MS=180000` once and report the observed duration so the promote workflows can pick the value. If a step fails on a selector, the selector contract in `smoke/README.md` is the reference: send the failing step and the trace to the frontend lane; do not weaken the test.
@@ -2864,7 +2974,7 @@ If Mike agrees, run `/triage-requests` for real. Expected: `triage/<today>.md` c
 
 - [ ] **Step 4: Report L4-M2**
 
-Push `develop` (`git push origin develop`) and report to the orchestrator: smoke duration and result, the triage ranking, the two domains now present in `docs/runbook.md`, and the verification status: L2 verified in Task 8; L1 and L3 pending the first merged seed and the first `promote` run (CI/CD plan Tasks 13 and 12).
+Push `develop` (`git push origin develop`) and report to the orchestrator: smoke duration and result, the triage ranking, confirmation that the domains in `docs/runbook.md` still match `railway domain list --service web --environment <env> --json` for both environments, and the verification status: L2 verified in Task 8; L1 and L3 pending the first merged seed and the first `promote` run (CI/CD plan Tasks 13 and 12).
 
 ---
 
@@ -2873,15 +2983,15 @@ Push `develop` (`git push origin develop`) and report to the orchestrator: smoke
 | Item | Proven by | Fallback if it fails |
 |---|---|---|
 | L1 `Closes owner/repo#n` closes an issue in another repo on merge | Task 10 puts the line in every PR body; the runbook (Task 15, section 2) checks `gh issue view <n> --json state` after the first merged seed at integration (CI/CD plan Task 13) | Task 15's runbook step runs `gh issue close <n>`; then add that command to Task 10's Step 8 |
-| L2 A root Stop hook can run a nested repo's script with the nested repo as working directory | Task 8, Step 3 fixture run: the nested script prints `cwd=.../backend` and its exit 2 blocks the root | The nested docs-check scripts accept `--repo <path>` (a change in L1 and L2), and `docs-check-all.sh` passes it |
+| L2 A root Stop hook can run a nested repo's script with the nested repo as working directory | Task 8, Step 3 fixture sequence: the nested script prints `cwd=.../backend`, its exit 2 blocks the root, and its escape-hatch exit 1 passes through as non-blocking | The nested docs-check scripts accept `--repo <path>` (a change in L1 and L2), and `docs-check-all.sh` passes it |
 | L3 `actions/checkout` of a public repo into a subfolder needs no token | Task 7's README documents the checkout; the first `promote` run in the app repos (CI/CD plan Task 12) proves it | Add `token: ${{ github.token }}` to the checkout step in both promote workflows |
 
 ## Self-review
 
 **Spec coverage.** Section 2 repo shape: every listed path has a task (`.claude/settings.json` and skills in 8 to 11; `.github` in 3 and 13; `CLAUDE.md`, `README.md`, `.gitignore` in 1; `docs/` in 14 and 15; `rubric/` in 2; `seeds/` in 5; `smoke/` in 7; `triage/` in 9; every script in 4, 5, 6, 8, 12). Section 3 workspace: Task 1 and Task 6. Section 4 intake: Tasks 3 and 4 (form fields in order and required flags validated by `check-issue-form.mjs`; labels with colors; board created and pinned). Section 5 rubric: Task 2 with all anchors, the test, the formula, the procedure with the fixed shape, the question patterns, `version: 1`. Section 6 skills: Tasks 9, 10, 11 with the exact steps, score-only and dry-run modes, the never-merge rule. Section 7 hooks: Task 8. Section 8 smoke: Task 7 with the six steps, the three env vars, Chromium only, traces on failure, the calling snippet. Section 9: seeds with the intended scoring (Task 5), `protect-branches.sh` with the exact payload (Task 12), `ci.yml` (Task 13). Section 10: Task 14. Section 11: Task 15 with all six sections. Section 12: the table above. Section 13 out of scope: no task touches application code, merges, other Railway projects, slides, or the product skills.
 
-**Placeholder scan.** Angle-bracket fields remain only where a value does not exist until another lane produces it: the two web domains (filled at L3-M1, called out in Tasks 14 and 15), issue numbers and SHAs inside skill and runbook instructions (runtime values by nature), and the secret values Mike pastes. Every script, YAML, JSON, and markdown file is written in full.
+**Placeholder scan.** Angle-bracket fields remain only where a value does not exist until runtime: issue numbers and SHAs inside skill and runbook instructions, the secret values Mike pastes, and the rehearsal timings. The two web domains are known (2026-09-08) and written out in Tasks 7, 14, 15, and 16. Every script, YAML, JSON, and markdown file is written in full.
 
-**Type and name consistency.** Env names `SMOKE_BASE_URL`, `SMOKE_AI_TIMEOUT_MS`, `SMOKE_FAST` match between `playwright.config.ts`, `smoke.spec.ts`, the README, the runbook, and the master plan. Label names match between `setup-labels.sh`, the triage skill, the runbook, and the master plan. Markers `<!-- kaizen-triage -->` and `<!-- kaizen-triage-board -->` match between Task 4, Task 9, and Task 16. `KAIZEN_WORKSPACE_ROOT` is the override in both hook scripts. The form headings in Task 3 are the seed headings in Task 5 and the section the skills read in Tasks 9 and 10. `npm run check:issue-form` and `npm run check:rubric` are defined in Task 1 and used in Tasks 3, 2, and 13. The branch name pattern `feat/<n>-<slug>` is the same in Steps 2, 5, 6, and 7 of the implement skill.
+**Type and name consistency.** Env names `SMOKE_BASE_URL`, `SMOKE_AI_TIMEOUT_MS`, `SMOKE_FAST` match between `playwright.config.ts`, `smoke.spec.ts`, the README, the runbook, and the master plan. Label names match between `setup-labels.sh`, the triage skill, the runbook, and the master plan. Markers `<!-- kaizen-triage -->` and `<!-- kaizen-triage-board -->` match between Task 4, Task 9, and Task 16. `KAIZEN_WORKSPACE_ROOT` is the override in both hook scripts. The form headings in Task 3 are the seed headings in Task 5 and the section the skills read in Tasks 9 and 10. `npm run check:issue-form` and `npm run check:rubric` are defined in Task 1 and used in Tasks 3, 2, and 13. The branch name pattern `feat/<n>-<slug>` is the same in Steps 2, 5, 6, and 7 of the implement skill. The docs-check exit contract (0 pass, 2 block, any other non-zero the escape hatch) is the same in the master plan interface, Task 8's root script, and its fixture.
 
 **Cross-lane assumptions not in the master plan's section 4.** The smoke selector contract (Task 7 README) and the web service `PORT=8080` (Task 14). Both are reported to the orchestrator as additions to section 4.
