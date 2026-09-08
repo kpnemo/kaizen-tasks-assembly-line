@@ -1,7 +1,11 @@
 # nested application repos, each pushed to its own GitHub repository
 /backend/
 /frontend/
+
 node_modules/
+smoke/test-results/
+smoke/playwright-report/
+
 .env
 .env.*
 !.env.example

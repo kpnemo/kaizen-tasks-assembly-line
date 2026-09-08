@@ -1,0 +1,45 @@
+# kaizen-tasks-assembly-line
+
+The workspace and cross-repo harness for the Kaizen Tasks workshop. This repository owns no application code. A Claude Code session started here can work in both app repos at once.
+
+## Layout
+
+| Path                  | What it is                                                                                                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/`            | Nested repo `kpnemo/kaizen-tasks-api`, git-ignored here. Express 5 API on port 3000, Postgres, Redis and BullMQ, Anthropic SDK breakdown agent. Owns the API contract `openapi.json`.             |
+| `frontend/`           | Nested repo `kpnemo/kaizen-tasks-web`, git-ignored here. React 19 and Vite app on port 5173 in development, typed client generated from the API contract, Caddy proxy for `/api/*` in production. |
+| `rubric/readiness.md` | The readiness rubric. Versioned by its `version:` front-matter line; the product-skills repo vendors a copy.                                                                                      |
+| `.claude/skills/`     | `triage-requests`, `implement-issue`, `seed-requests`.                                                                                                                                            |
+| `smoke/`              | Playwright smoke package, run by both app repos' `promote` workflows against staging.                                                                                                             |
+| `seeds/requests/`     | Four seeded feature requests. `triage/` holds dated triage reports.                                                                                                                               |
+| `scripts/`            | Workspace setup, labels, seeds, branch protection, root hooks.                                                                                                                                    |
+| `docs/`               | PRD, runbook, Railway setup, specs and plans.                                                                                                                                                     |
+
+## Run both apps locally
+
+1. Once: `scripts/setup-workspace.sh` (clones the nested repos, selects Node 24, checks Postgres and Redis, creates `kaizen_dev` and `kaizen_test`, runs `npm ci` in both).
+2. Terminal 1: `cd backend && nvm use && npm run dev` (API on http://localhost:3000).
+3. Terminal 2: `cd frontend && nvm use && VITE_PROXY_TARGET=http://localhost:3000 npm run dev` (web on http://localhost:5173, proxies `/api` to the API).
+
+## Conventions shared by both app repos
+
+1. Envelopes: success is `{ "data", "meta" }`, error is `{ "error": { "code", "message", "details", "requestId" } }`; codes are a closed enum.
+2. TDD: write the failing test first and show it failing in the transcript before the implementation.
+3. Docs-check: each repo's Stop hook runs `scripts/docs-check.sh --hook`; the root Stop hook runs it in every nested repo that has changes; CI runs the same script.
+4. Migrations are additive only (API ADR 0004).
+5. Contract copy: the web repo commits `src/api/openapi.json` and its generated types; when the API contract changes, pull it (`scripts/pull-openapi.sh --local ../backend/openapi.json` then `npm run api:types`) before touching web code.
+
+## Per-repo skills, read by path from a root session
+
+- `backend/.claude/skills/add-api-endpoint/SKILL.md`
+- `frontend/.claude/skills/add-frontend-feature/SKILL.md`
+- `backend/.claude/skills/write-adr/SKILL.md` and `frontend/.claude/skills/write-adr/SKILL.md`
+- `backend/.claude/skills/release-notes/SKILL.md` and `frontend/.claude/skills/release-notes/SKILL.md`
+
+## Rules
+
+- When a change touches both repos, the API changes first; the web follows after pulling the contract.
+- Nothing in this repository merges pull requests. Skills open pull requests and stop. Mike merges.
+- Never push to `develop` or `main` directly. Feature branches and pull requests only, in every repo.
+- Secrets never enter any repository.
+- Root hooks: Stop runs `scripts/docs-check-all.sh --hook`; PostToolUse on Edit or Write runs `scripts/format-file.sh`.
