@@ -19,7 +19,7 @@ gh auth status
 gh repo view kpnemo/kaizen-tasks-assembly-line --json nameWithOwner --jq .nameWithOwner
 ```
 
-Stop if either fails; report the error.
+If `gh auth status` fails, tell the user to run `gh auth login` and stop. If `gh repo view` fails, tell the user the repository `kpnemo/kaizen-tasks-assembly-line` is not reachable with the current login and stop.
 
 2. Preview:
 
@@ -38,11 +38,11 @@ scripts/seed-requests.sh
 4. Verify and report:
 
 ```bash
-gh issue list --repo kpnemo/kaizen-tasks-assembly-line --label feature-request --state open --json number,title \
-  --jq '.[] | "#\(.number) \(.title)"'
+gh issue list --repo kpnemo/kaizen-tasks-assembly-line --label feature-request --state open --json number,title,url \
+  --jq '.[] | "#\(.number) \(.title) \(.url)"'
 ```
 
-Print the created issue URLs, the skipped titles, and the sentence `Run /triage-requests to score them`.
+The `CREATED` lines printed by step 3 also carry the URL and may be reported directly. Print the created issue URLs, the skipped titles, and the sentence `Run /triage-requests to score them`.
 
 ## Rules
 
