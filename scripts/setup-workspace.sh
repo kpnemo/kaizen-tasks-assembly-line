@@ -102,7 +102,7 @@ done
 
 cat <<EOF
 == Next
-  API:  cd backend  && nvm use && cp -n .env.example .env; npm run dev            # http://localhost:3000
+  API:  cd backend  && nvm use && cp -n .env.example .env; AI_MODEL_PROVIDER=fake npm run dev   # http://localhost:3000 (set a real ANTHROPIC_API_KEY in .env to use the assistant)
   Web:  cd frontend && nvm use && VITE_PROXY_TARGET=http://localhost:3000 npm run dev   # http://localhost:5173
   Both test suites: (cd backend && npm test) && (cd frontend && npm test)
 EOF

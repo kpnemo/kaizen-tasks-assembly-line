@@ -39,7 +39,7 @@ Print a numbered checklist copied from the `### Acceptance criteria` section, on
 If the labels include `arch-change`:
 
 1. Decide the affected repo from the request (schema, queue, auth, prompt, proxy: `backend/`; router, client, Caddyfile: `frontend/`).
-2. Create the feature branch there (the branch command from Step 5 or Step 6).
+2. Create the feature branch there (the branch command from Step 5 or Step 6; that command reuses the branch if it already exists, so Steps 5 and 6 can resume onto it).
 3. Read that repo's `.claude/skills/write-adr/SKILL.md` and write the ADR exactly as it says; commit it on the feature branch.
 4. Stop with the sentence `ADR written, confirm to continue`.
 
@@ -57,7 +57,7 @@ Print `Start: $(date +%H:%M)`. Check the clock at each step boundary. At 20 minu
 
 ```bash
 git -C backend fetch origin
-git -C backend switch -c feat/<n>-<slug> origin/develop
+git -C backend switch feat/<n>-<slug> 2>/dev/null || git -C backend switch -c feat/<n>-<slug> origin/develop
 ```
 
 Read `backend/.claude/skills/add-api-endpoint/SKILL.md` and follow it exactly: restate the endpoint, write the failing integration test, run it and show the failure, add or extend the schemas and register them, add the service method with the ownership check, the repository query, the route with `validate` and the envelope, run the tests and show them green, regenerate OpenAPI, add the changelog bullet, add an ADR if an architectural file changed, run docs-check.
@@ -81,7 +81,7 @@ Every command above must exit 0 before the commit.
 
 ```bash
 git -C frontend fetch origin
-git -C frontend switch -c feat/<n>-<slug> origin/develop
+git -C frontend switch feat/<n>-<slug> 2>/dev/null || git -C frontend switch -c feat/<n>-<slug> origin/develop
 ```
 
 If the contract changed in Step 5:
