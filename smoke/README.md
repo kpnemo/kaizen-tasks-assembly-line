@@ -8,7 +8,7 @@ One Playwright test, Chromium only, run against a deployed Kaizen Tasks web URL.
 2. Registers `smoke+<timestamp>@kaizen.local` with a fixed password and the display name "Smoke".
 3. Expects the task list and creates the task "Prepare the quarterly business review deck for the leadership team" with a two-sentence description.
 4. Expects the row with a thinking chip. Unless fast mode, polls the row until the chip leaves thinking, within the AI timeout. Fails on a failed chip or on timeout. Accepts a skipped chip as a pass with a console note.
-5. Opens the detail. If suggestions exist, accepts the first one and expects the progress label to read `0/1` or higher.
+5. Opens the detail. If the row's chip showed suggestions in step 4, waits for the Accept button to appear, accepts the first suggestion, and expects the progress label to read `0/1` or higher. Otherwise logs that there was no suggestion to accept.
 6. Logs out and expects the login page.
 
 ## Run it
@@ -37,6 +37,7 @@ The test finds elements by accessible role and name, never by CSS class. The web
 | --------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Login     | heading          | role heading, name matches `/log in/i`; URL ends in `/login`                                                                                                                                             |
 | Login     | link to register | role link, name matches `/register\|create an account/i`                                                                                                                                                 |
+| Register  | heading          | role heading, name matches `/create your account/i`; awaited before filling the form so a React Router transition can't leave the login form's fields under the same locators                            |
 | Register  | inputs           | labels matching `/email/i`, `/^password$/i`, `/display name/i`                                                                                                                                           |
 | Register  | submit           | role button, name matches `/create account\|register/i`; success lands on `/tasks`                                                                                                                       |
 | Task list | create bar       | role textbox named `Task title`; role textbox named `Description` (a button whose name contains "description" reveals it when collapsed); Enter in the title submits                                     |

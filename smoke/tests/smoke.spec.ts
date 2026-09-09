@@ -42,6 +42,7 @@ test("register, create a task, wait for the assistant, accept a suggestion, log 
 }) => {
   const email = `smoke+${Date.now()}@kaizen.local`;
   const row = page.getByRole("listitem").filter({ hasText: TASK_TITLE });
+  let state: AiState = "none";
 
   await test.step("1. open the base URL and expect the login page", async () => {
     await page.goto("/");
@@ -51,6 +52,7 @@ test("register, create a task, wait for the assistant, accept a suggestion, log 
   await test.step("2. register a fresh user", async () => {
     await page.getByRole("link", { name: /register|create an account/i }).click();
     await expect(page).toHaveURL(/\/register$/);
+    await expect(page.getByRole("heading", { name: /create your account/i })).toBeVisible();
     await page.getByLabel(/email/i).fill(email);
     await page.getByLabel(/^password$/i).fill(PASSWORD);
     await page.getByLabel(/display name/i).fill(DISPLAY_NAME);
@@ -72,7 +74,7 @@ test("register, create a task, wait for the assistant, accept a suggestion, log 
   });
 
   await test.step("4. wait for the assistant", async () => {
-    let state = await aiState(row);
+    state = await aiState(row);
     if (state === "thinking") {
       if (FAST) {
         console.log("SMOKE_FAST=1: not waiting for the assistant");
@@ -104,7 +106,8 @@ test("register, create a task, wait for the assistant, accept a suggestion, log 
     await expect(page).toHaveURL(/\/tasks\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { name: TASK_TITLE })).toBeVisible();
     const accept = page.getByRole("button", { name: /^accept$/i }).first();
-    if ((await accept.count()) > 0) {
+    if (state === "suggestions") {
+      await expect(accept).toBeVisible({ timeout: 15_000 });
       await accept.click();
       await expect(page.getByText(/\b\d+\/[1-9]\d*\b/).first()).toBeVisible();
     } else {

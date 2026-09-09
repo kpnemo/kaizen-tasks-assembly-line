@@ -17,3 +17,5 @@ All notable changes to this repository are documented here. The format follows
 ### Fixed
 
 - Railway setup doc: status and branch read-backs use fields the CLI actually emits; rollback section no longer presents `redeploy` as a rollback.
+- `smoke/tests/smoke.spec.ts` step 2: waits for the "Create your account" heading before filling the register form, so a React Router transition can no longer leave the still-mounted login form's email/password fields under the same locators (the form was submitting with an empty email).
+- `smoke/tests/smoke.spec.ts` step 5: now waits for the Accept button when step 4 saw a `suggestions` chip, instead of checking `count()` immediately after the heading renders (which raced the detail query and always logged "No suggestion to accept").
