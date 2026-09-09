@@ -67,7 +67,7 @@ The test finds elements by accessible role and name, never by CSS class. The web
   working-directory: assembly-line/smoke
   env:
     SMOKE_BASE_URL: https://web-staging-52c0.up.railway.app
-    SMOKE_AI_TIMEOUT_MS: "90000"
+    SMOKE_AI_TIMEOUT_MS: "180000"
 - uses: actions/upload-artifact@v5
   if: failure()
   with:

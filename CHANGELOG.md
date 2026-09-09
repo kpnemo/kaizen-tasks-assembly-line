@@ -16,6 +16,7 @@ All notable changes to this repository are documented here. The format follows
 
 ### Fixed
 
+- PR #6 review: runbook names the five issue-form fields and warns that the production health loop fails before the first promotion; CI calls `npm run check:rubric`; the smoke README example uses the 180 s assistant timeout.
 - Runbook smoke row includes `npx playwright install --with-deps chromium`, matching `smoke/README.md` (final re-review).
 - Railway setup doc: status and branch read-backs use fields the CLI actually emits; rollback section no longer presents `redeploy` as a rollback.
 - `smoke/tests/smoke.spec.ts` step 2: waits for the "Create your account" heading before filling the register form, so a React Router transition can no longer leave the still-mounted login form's email/password fields under the same locators (the form was submitting with an empty email).

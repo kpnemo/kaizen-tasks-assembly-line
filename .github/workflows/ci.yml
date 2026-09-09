@@ -46,4 +46,4 @@ jobs:
         run: npm run check:issue-form
 
       - name: Assert the rubric has a version line
-        run: "grep -E '^version: [0-9]+$' rubric/readiness.md"
+        run: npm run check:rubric
