@@ -19,8 +19,11 @@ nvm use
 npm ci
 npx playwright install --with-deps chromium
 SMOKE_BASE_URL=https://<web domain> npm test          # headless
+NODE_OPTIONS=--use-system-ca SMOKE_BASE_URL=https://<web domain> npm test   # behind a TLS-inspecting proxy (corporate laptop)
 SMOKE_BASE_URL=http://localhost:5173 npm run test:headed   # rehearsal, watch it
 ```
+
+Step 1b reads health with Playwright's Node request client, which does not read the system trust store; behind a TLS-inspecting proxy it fails with `self-signed certificate in certificate chain` unless Node runs with `--use-system-ca`. The browser steps are unaffected, and GitHub Actions needs no flag.
 
 | Variable              | Required | Default | Meaning                                      |
 | --------------------- | -------- | ------- | -------------------------------------------- |
