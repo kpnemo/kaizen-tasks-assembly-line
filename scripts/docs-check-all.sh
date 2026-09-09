@@ -32,7 +32,8 @@ if [ "${1:-}" != "--hook" ]; then
 fi
 
 ROOT="${KAIZEN_WORKSPACE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-HOOK_INPUT="$(cat 2>/dev/null || true)"
+HOOK_INPUT=""
+if [ ! -t 0 ]; then IFS= read -r -t 5 HOOK_INPUT || true; fi
 STOP_HOOK_ACTIVE="$(printf '%s' "$HOOK_INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo false)"
 if [ "$STOP_HOOK_ACTIVE" != "true" ]; then STOP_HOOK_ACTIVE=false; fi
 

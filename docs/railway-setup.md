@@ -176,6 +176,17 @@ railway domain --service web --environment production --port 8080 --json    # on
 
 Both domains are recorded in `docs/runbook.md` (section "Fixed facts") and are the `SMOKE_BASE_URL` of the app repos' `promote` workflows.
 
+The staging domain also has to reach the API repo's `promote` workflow another way: `backend/.github/workflows/promote.yml` reads it from the repository variable `STAGING_WEB_URL`, which does not exist by default and must be set on **both** app repos so the value lives in one place:
+
+```bash
+gh variable set STAGING_WEB_URL --repo kpnemo/kaizen-tasks-api --body https://web-staging-52c0.up.railway.app
+gh variable set STAGING_WEB_URL --repo kpnemo/kaizen-tasks-web --body https://web-staging-52c0.up.railway.app
+gh variable list --repo kpnemo/kaizen-tasks-api
+gh variable list --repo kpnemo/kaizen-tasks-web
+```
+
+Without it, the API's `promote` job fails at its first step with "Repository variable STAGING_WEB_URL is not set"; the web repo survives on an inline default, so the failure is asymmetric. Set on both repos 2026-09-09 16:55 IDT; see `docs/cicd-log.md`.
+
 ## 7. Verify
 
 ```bash

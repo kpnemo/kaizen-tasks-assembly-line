@@ -67,13 +67,15 @@ Then, in `backend/`:
 ```bash
 cd backend && nvm use
 npm test
+npm run typecheck
+npm run lint
 npm run openapi
 npm run docs:check
 git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 cd ..
 ```
 
-All three commands must exit 0 before the commit.
+Every command above must exit 0 before the commit.
 
 ## Step 6: Web, when affected
 
@@ -95,6 +97,8 @@ Then, in `frontend/`:
 ```bash
 cd frontend && nvm use
 npm test
+npm run typecheck
+npm run lint
 npm run docs:check
 git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 cd ..
@@ -112,7 +116,7 @@ gh pr create --repo kpnemo/<repo> --base develop --head feat/<n>-<slug> \
 
 Pull request body:
 
-```markdown
+````markdown
 ## Issue
 
 Closes kpnemo/kaizen-tasks-assembly-line#<n>
@@ -137,7 +141,7 @@ Passing run after:
 ```
 
 Docs-check: `<the last line of npm run docs:check>`
-```
+````
 
 Print the pull request URLs. The API pull request is listed first.
 

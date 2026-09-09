@@ -20,6 +20,9 @@ Terminals to have open before the session, all at `webapp/`: T1 Claude Code (`cl
 
 ### T minus one day
 
+- [ ] `kaizen-tasks-assembly-line` `main` carries the smoke package before any promotion: `gh api repos/kpnemo/kaizen-tasks-assembly-line/contents/smoke/package.json?ref=main --jq .name` prints `kaizen-tasks-smoke` (both app repos' `promote` workflows check this repo out at `main` and run the smoke package from there; re-point `main` at `develop` any time `smoke/` changes).
+- [ ] `STAGING_WEB_URL` is set on both app repos: `gh variable list --repo kpnemo/kaizen-tasks-api` and `gh variable list --repo kpnemo/kaizen-tasks-web` both show `STAGING_WEB_URL` (the API repo's `promote` job fails at step 1 without it; see `docs/cicd-log.md` for when it was set).
+- [ ] Local prerequisites for a live `implement-issue` run: Postgres answers (`pg_isready`) and Redis answers (`redis-cli ping` returns `PONG`); both nested trees are clean and on `develop` (`git -C backend status --porcelain` and `git -C frontend status --porcelain` are both empty, and `git -C backend rev-list --left-right --count origin/develop...HEAD` and the frontend equivalent both print `0 0`); `nvm use` succeeds in both `backend/` and `frontend/`.
 - [ ] Keys and variables present in both environments: `railway variable list --service api --environment production --json | jq -r 'keys[]'` and the same for `staging` list every name in `docs/railway-setup.md` section 2.
 - [ ] The Anthropic key is real, not the placeholder: `railway variable list --service api --environment production --json | jq -r '.ANTHROPIC_API_KEY | startswith("REPLACE_ME")'` prints `false`, and the same for `staging` (the value itself is never printed).
 - [ ] Seeds filed: `gh issue list --repo kpnemo/kaizen-tasks-assembly-line --label feature-request --state open` shows the four seed titles (run `/seed-requests` if not).
@@ -42,7 +45,7 @@ done
 
 - [ ] Raise the session budget on production: `railway variable set AI_GLOBAL_LIMIT_PER_HOUR=600 --service api --environment production` (redeploys `api`; wait for `SUCCESS` in `railway deployment list --service api --environment production --limit 1 --json`).
 - [ ] Reset the demo user on production, in Mike's terminal with his token: `curl -fsS -X POST https://web-production-7ef71.up.railway.app/api/v1/admin/seed-reset -H "x-admin-token: $ADMIN_TOKEN" | jq .` prints `{ "data": { "demoUserId": "<uuid>" } }`.
-- [ ] Smoke green against both environments in the last hour: `cd smoke && SMOKE_BASE_URL=https://web-staging-52c0.up.railway.app npm test && SMOKE_BASE_URL=https://web-production-7ef71.up.railway.app npm test`.
+- [ ] Smoke green against both environments in the last hour, following `smoke/README.md`'s full sequence: `cd smoke && npm ci && SMOKE_BASE_URL=https://web-staging-52c0.up.railway.app SMOKE_AI_TIMEOUT_MS=180000 npm test && SMOKE_BASE_URL=https://web-production-7ef71.up.railway.app SMOKE_AI_TIMEOUT_MS=180000 npm test` (`nvm use` first if not already on Node 24). The production half cannot pass until production has been promoted at least once (see the smoke-on-`main` row above).
 - [ ] Log in as the demo user in the production tab; the tour tasks are there.
 - [ ] `gh auth status` and `railway whoami` succeed in T2. Claude Code open at `webapp/` in T1 with `/hooks` showing the Stop and PostToolUse hooks.
 - [ ] Projector font size checked: terminal at 18pt or larger, browser zoom 125%.

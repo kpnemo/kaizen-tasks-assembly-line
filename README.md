@@ -36,7 +36,7 @@ Open Claude Code at the workspace root (`claude` in this folder). The skills are
 
 ## Smoke package
 
-`smoke/` is a Playwright test that registers a user, creates a task, waits for the assistant, accepts a suggestion, and logs out. Both app repos check this repository out at `main` and run it against staging in their `promote` workflow. See `smoke/README.md`.
+`smoke/` is a Playwright test that registers a user, creates a task, waits for the assistant, accepts a suggestion, and logs out. Both app repos check this repository out at `main` and run it against staging in their `promote` workflow. See `smoke/README.md`. Because `promote` reads `main`, not `develop`, `main` must be re-pointed at `develop` after any change to `smoke/` — verify with `gh api repos/kpnemo/kaizen-tasks-assembly-line/contents/smoke/package.json?ref=main --jq .name`, expecting `kaizen-tasks-smoke`.
 
 ## Docs
 

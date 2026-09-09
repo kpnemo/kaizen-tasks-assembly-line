@@ -8,7 +8,8 @@
 set -uo pipefail
 
 ROOT="${KAIZEN_WORKSPACE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-input="$(cat 2>/dev/null || true)"
+input=""
+if [ ! -t 0 ]; then IFS= read -r -t 5 input || true; fi
 file="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)"
 if [ -z "$file" ]; then exit 0; fi
 case "$file" in
