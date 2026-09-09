@@ -28,6 +28,7 @@ The workspace and cross-repo harness for the Kaizen Tasks workshop. This reposit
 3. Docs-check: each repo's Stop hook runs `scripts/docs-check.sh --hook`; the root Stop hook runs it in every nested repo that has changes; CI runs the same script.
 4. Migrations are additive only (API ADR 0004).
 5. Contract copy: the web repo commits `src/api/openapi.json` and its generated types; when the API contract changes, pull it (`scripts/pull-openapi.sh --local ../backend/openapi.json` then `npm run api:types`) before touching web code.
+6. Versions: both app repos carry the same semver in `package.json`, cut with each repo's `release-notes` skill (same number, same day) on a branch that merges to `develop` before the `develop` to `main` pull requests. `GET /api/v1/health` reports `version`; the web footer prints `v<version> · web <sha> · api <sha>` and turns the API part amber when the versions differ; the smoke test asserts they match; `scripts/check-versions.sh` checks the two checkouts.
 
 ## Per-repo skills, read by path from a root session
 

@@ -49,6 +49,20 @@ test("register, create a task, wait for the assistant, accept a suggestion, log 
     await expectLoginPage(page);
   });
 
+  await test.step("1b. the footer prints the version the API reports", async () => {
+    const res = await page.request.get("/api/v1/health");
+    expect(res.ok(), "health must answer 200 before the footer check").toBe(true);
+    const body = (await res.json()) as { data: { version: string; commit: string } };
+    expect(body.data.version).toMatch(/^\d+\.\d+\.\d+$/);
+    const footer = page.getByRole("contentinfo");
+    // Whole tokens only: "v1.2.3" must not be satisfied by "v1.2.30", nor "api abc1234" by a longer hash.
+    const escaped = body.data.version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await expect(footer).toContainText(new RegExp(`v${escaped}(?!\\d)`));
+    await expect(footer).toContainText(
+      new RegExp(`api ${body.data.commit.slice(0, 7)}(?![0-9a-f])`),
+    );
+  });
+
   await test.step("2. register a fresh user", async () => {
     await page.getByRole("link", { name: /register|create an account/i }).click();
     await expect(page).toHaveURL(/\/register$/);
