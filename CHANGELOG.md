@@ -9,11 +9,14 @@ All notable changes to this repository are documented here. The format follows
 ### Added
 
 - Facilitator runbook (`docs/runbook.md`): pre-session checklists, the Part 1 minute-by-minute table, gate scripts, a failure page, rollback, and the Part 2/3 handoffs.
+- `scripts/check-versions.sh`: checks that `backend/package.json` and `frontend/package.json` carry the same version, for the shared-versioning convention across the app repos.
+- `smoke/tests/smoke.spec.ts` step 1b: asserts the web footer prints the version and short commit reported by `GET /api/v1/health`.
 
 ### Changed
 
 - `docs/cicd-log.md`: recorded the first `develop`→`main` promotion of both app repos with the production read-backs (Task 12, L3-M2) and the demo-user resets on staging and production plus the production AI probe (Task 13).
 - `docs/cicd-log.md`: recorded the IaC apply for `api` and `web` in staging and production (Task 8), the wait-for-CI observation of a gated staging deploy (Task 9, V4), the public domain, proxy and health verification (Task 10, L3-M1), and branch protection on `develop` (`ci`) and `main` (`ci`+`promote`) in both app repos (Task 11).
+- `README.md`, `CLAUDE.md`, `docs/runbook.md`, `docs/PRD.md`, and `.claude/skills/implement-issue/SKILL.md`: documented the shared-versioning convention (`scripts/check-versions.sh`, the `/api/v1/health` `version` field, the footer's version and amber mismatch state, and the runbook's Ship-segment release cut).
 
 ### Fixed
 

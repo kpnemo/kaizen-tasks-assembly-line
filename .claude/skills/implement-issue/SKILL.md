@@ -114,6 +114,8 @@ gh pr create --repo kpnemo/<repo> --base develop --head feat/<n>-<slug> \
   --title "feat: <issue title> (#<n>)" --body-file <tempfile>
 ```
 
+Do not bump `package.json` versions in feature pull requests; the release is cut with `/release-notes` in both repos at promotion time (runbook, Ship).
+
 Pull request body:
 
 ````markdown

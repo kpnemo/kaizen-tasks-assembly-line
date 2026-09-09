@@ -26,17 +26,18 @@ Open Claude Code at the workspace root (`claude` in this folder). The skills are
 
 ## Other scripts
 
-| Script                                                 | Purpose                                                                       |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `scripts/setup-labels.sh [--dry-run]`                  | Create or update the label set and the pinned Triage board issue.             |
-| `scripts/seed-requests.sh [--dry-run]`                 | Same as the seed skill, from a shell.                                         |
-| `scripts/protect-branches.sh <owner/repo> [--dry-run]` | Apply branch protection to `develop` and `main` of an app repo.               |
-| `scripts/docs-check-all.sh --hook`                     | Root Stop hook: run each nested repo's docs-check when it has changes.        |
-| `scripts/format-file.sh`                               | Root PostToolUse hook: format an edited file with the owning repo's prettier. |
+| Script                                                 | Purpose                                                                               |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `scripts/setup-labels.sh [--dry-run]`                  | Create or update the label set and the pinned Triage board issue.                     |
+| `scripts/seed-requests.sh [--dry-run]`                 | Same as the seed skill, from a shell.                                                 |
+| `scripts/protect-branches.sh <owner/repo> [--dry-run]` | Apply branch protection to `develop` and `main` of an app repo.                       |
+| `scripts/docs-check-all.sh --hook`                     | Root Stop hook: run each nested repo's docs-check when it has changes.                |
+| `scripts/format-file.sh`                               | Root PostToolUse hook: format an edited file with the owning repo's prettier.         |
+| `scripts/check-versions.sh`                            | Check that `backend/package.json` and `frontend/package.json` carry the same version. |
 
 ## Smoke package
 
-`smoke/` is a Playwright test that registers a user, creates a task, waits for the assistant, accepts a suggestion, and logs out. Both app repos check this repository out at `main` and run it against staging in their `promote` workflow. See `smoke/README.md`. Because `promote` reads `main`, not `develop`, `main` must be re-pointed at `develop` after any change to `smoke/` — verify with `gh api 'repos/kpnemo/kaizen-tasks-assembly-line/contents/smoke/package.json?ref=main' --jq .name`, expecting `package.json`.
+`smoke/` is a Playwright test that registers a user, creates a task, waits for the assistant, accepts a suggestion, and logs out; it also asserts the footer prints the version the API reports. Both app repos check this repository out at `main` and run it against staging in their `promote` workflow. See `smoke/README.md`. Because `promote` reads `main`, not `develop`, `main` must be re-pointed at `develop` after any change to `smoke/` — verify with `gh api 'repos/kpnemo/kaizen-tasks-assembly-line/contents/smoke/package.json?ref=main' --jq .name`, expecting `package.json`.
 
 ## Docs
 

@@ -5,6 +5,7 @@ One Playwright test, Chromium only, run against a deployed Kaizen Tasks web URL.
 ## What it does, in order
 
 1. Opens the base URL and expects the login page.
+   1b. Reads `GET /api/v1/health` and expects the footer (`role contentinfo`) to print that version and the API's short commit.
 2. Registers `smoke+<timestamp>@kaizen.local` with a fixed password and the display name "Smoke".
 3. Expects the task list and creates the task "Prepare the quarterly business review deck for the leadership team" with a two-sentence description.
 4. Expects the row with a thinking chip. Unless fast mode, polls the row until the chip leaves thinking, within the AI timeout. Fails on a failed chip or on timeout. Accepts a skipped chip as a pass with a console note.
