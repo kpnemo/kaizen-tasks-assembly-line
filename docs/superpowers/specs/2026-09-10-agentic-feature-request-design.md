@@ -64,6 +64,8 @@ feature_request_conversations
 
 `skip: true` records the user message `content: "(skipped)"`, `skipped: true`, and tells the model the PM skipped; it still counts as an answered question.
 
+The 429 before the stream uses the same `RATE_LIMITED` envelope and `details` shape as the breakdown limit (`scope`, `limit`, `resetAt` ISO string), so the web app renders the reset hour the same way. `POST /feature-requests` with a `conversationId` that is not the caller's answers 404 `NOT_FOUND`; one whose status is `filed` or `abandoned` answers 409 `CONFLICT`. The stream's HTTP response ends right after the `done` event (the server calls `res.end()`); the client treats the end of the body, not the `done` event alone, as completion. `ConversationEvent` in the contract is a discriminated union on `event` of `{ event: "delta", data: { text } } | { event: "state", data: { conversation } } | { event: "error", data: { code, message } } | { event: "done", data: {} }`.
+
 ### 3.3 Stream protocol
 
 Response headers: `Content-Type: text/event-stream; charset=utf-8`, `Cache-Control: no-cache`, `Connection: keep-alive`, `X-Accel-Buffering: no`; headers flushed before the model call. Events, each `event: <name>\ndata: <json>\n\n`:
@@ -166,7 +168,7 @@ MSW handlers: `GET /feature-requests/conversation` (404 or a fixture), `POST` (c
 
 ### 4.3 Proxy and dev
 
-`Caddyfile`: `reverse_proxy` for `/api/*` gets `flush_interval -1` so streamed responses are not buffered (ADR 0001 amendment). The Vite dev proxy streams as is. `vite.config.ts` unchanged.
+`Caddyfile` is unchanged. Caddy's `reverse_proxy` flushes `text/event-stream` responses immediately by default, and `flush_interval -1` must NOT be set: the Caddy docs state that a negative value "does not cancel the request to the backend even if the client disconnects early", which would defeat section 3.3's abort-on-disconnect rule. The Vite dev proxy streams as is. `vite.config.ts` unchanged. (Corrected 2026-09-10 02:10 after the Codex plan review; the earlier text asked for `flush_interval -1`.)
 
 ### 4.4 Accessibility and selectors
 
@@ -175,7 +177,7 @@ Chips and buttons are real buttons with their visible text as the name. README "
 ## 5. Docs and release
 
 - API: ADR 0005 "Interview agent for feature requests" (streaming over SSE from Express, the tool-call state pattern, the vendored rubric, why no streaming library); `docs/ARCHITECTURE.md` section; README route table; CHANGELOG; release 1.1.0 with the release-notes skill in the same branch (the docs gate accepts a release cut).
-- Web: ADR 0005 "Streamed conversation through the typed client" (`parseAs: "stream"`, the SSE parser, the contract's event schema); ADR 0001 amendment (flush); README features and selector rows; CHANGELOG; release 1.1.0.
+- Web: ADR 0005 "Streamed conversation through the typed client" (`parseAs: "stream"`, the SSE parser, the contract's event schema);  README features and selector rows; CHANGELOG; release 1.1.0.
 - Assembly line: runbook Part 1 gains the intake demo with the assistant (script review step), `docs/PRD.md` R-section for the assistant, CHANGELOG; the rubric now has three consumers (assembly line, product-skills, API) and the note about `scripts/sync-rubric.sh` in each.
 
 ## 6. Order and milestones
