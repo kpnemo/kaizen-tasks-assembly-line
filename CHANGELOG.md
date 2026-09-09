@@ -12,6 +12,7 @@ All notable changes to this repository are documented here. The format follows
 
 ### Changed
 
+- `docs/cicd-log.md`: recorded the first `develop`→`main` promotion of both app repos with the production read-backs (Task 12, L3-M2) and the demo-user resets on staging and production plus the production AI probe (Task 13).
 - `docs/cicd-log.md`: recorded the IaC apply for `api` and `web` in staging and production (Task 8), the wait-for-CI observation of a gated staging deploy (Task 9, V4), the public domain, proxy and health verification (Task 10, L3-M1), and branch protection on `develop` (`ci`) and `main` (`ci`+`promote`) in both app repos (Task 11).
 
 ### Fixed
