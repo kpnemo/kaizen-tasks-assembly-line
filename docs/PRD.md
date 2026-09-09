@@ -1,12 +1,12 @@
 # PRD: Kaizen Tasks and the Product Assembly Line Workshop
 
-| Field | Value |
-|---|---|
-| Owner | Mike Bogdanovsky, AI Transformation and Enablement, P&T |
-| Status | Draft v0.1 for owner review |
-| Written | 2026-09-08 |
-| Session date | Within two weeks of writing (target on or before 2026-09-22), one rehearsal before |
-| Consumers | Mike (review), then the `superpowers:brainstorming` skill to produce design specs, then `superpowers:writing-plans` and execution |
+| Field        | Value                                                                                                                             |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Owner        | Mike Bogdanovsky, AI Transformation and Enablement, P&T                                                                           |
+| Status       | Draft v0.1 for owner review                                                                                                       |
+| Written      | 2026-09-08                                                                                                                        |
+| Session date | Within two weeks of writing (target on or before 2026-09-22), one rehearsal before                                                |
+| Consumers    | Mike (review), then the `superpowers:brainstorming` skill to produce design specs, then `superpowers:writing-plans` and execution |
 
 ## 0. How to use this document
 
@@ -46,29 +46,29 @@ Success criteria for the artifacts:
 
 ## 3. Audience and session constraints
 
-| Constraint | Value |
-|---|---|
-| Attendees | 10 to 20 PMs and product leads, mixed hands-on |
-| Tools attendees have | Claude Code, Claude Desktop, Cowork, GitHub accounts (public repos remove invite friction) |
-| Format | One session, 3 hours |
-| Split | Part 1: 75 min. Part 2: 60 min. Part 3: 45 min |
-| Part 1 mode | Live run, no fallback PR, no recording. One full rehearsal before the day is the safety net |
-| Part 2 mode | Hands-on in Claude Code, skills also usable in Cowork |
-| Part 3 mode | Facilitated, paper canvas, no laptops required |
-| Distribution | Company Claude marketplace and Enterprise connectors exist. Mentioned in the session, not demonstrated |
-| Hosting | Mike's personal GitHub (public repos) and personal Railway account |
-| Secrets | Anthropic API key lives only in Railway variables and a git-ignored local `.env`. Mike pastes it. Never committed |
+| Constraint           | Value                                                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Attendees            | 10 to 20 PMs and product leads, mixed hands-on                                                                    |
+| Tools attendees have | Claude Code, Claude Desktop, Cowork, GitHub accounts (public repos remove invite friction)                        |
+| Format               | One session, 3 hours                                                                                              |
+| Split                | Part 1: 75 min. Part 2: 60 min. Part 3: 45 min                                                                    |
+| Part 1 mode          | Live run, no fallback PR, no recording. One full rehearsal before the day is the safety net                       |
+| Part 2 mode          | Hands-on in Claude Code, skills also usable in Cowork                                                             |
+| Part 3 mode          | Facilitated, paper canvas, no laptops required                                                                    |
+| Distribution         | Company Claude marketplace and Enterprise connectors exist. Mentioned in the session, not demonstrated            |
+| Hosting              | Mike's personal GitHub (public repos) and personal Railway account                                                |
+| Secrets              | Anthropic API key lives only in Railway variables and a git-ignored local `.env`. Mike pastes it. Never committed |
 
 ## 4. Scope overview
 
 Four repositories, all TypeScript, all public under Mike's GitHub account, all prefixed `kaizen-tasks-`. Layout on disk: the workshop root is a plain folder; `webapp/` is the assembly-line repo and contains `backend/` and `frontend/` as independent, git-ignored nested repos; `product-skills/` sits at the root.
 
-| Repo | Purpose |
-|---|---|
-| `kaizen-tasks-api` | Express API, Postgres, Redis and BullMQ, Anthropic SDK agent. Own `.claude/` harness |
-| `kaizen-tasks-web` | React web app consuming the API's generated OpenAPI contract. Own `.claude/` harness |
-| `kaizen-tasks-assembly-line` | Cross-repo harness: triage and implement agents, workspace layout, issue templates, seeded requests, facilitator runbook |
-| `kaizen-tasks-product-skills` | Part 2 product skills packaged as a Claude Code plugin, Part 3 canvas and plan templates, synthetic data |
+| Repo                          | Purpose                                                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `kaizen-tasks-api`            | Express API, Postgres, Redis and BullMQ, Anthropic SDK agent. Own `.claude/` harness                                     |
+| `kaizen-tasks-web`            | React web app consuming the API's generated OpenAPI contract. Own `.claude/` harness                                     |
+| `kaizen-tasks-assembly-line`  | Cross-repo harness: triage and implement agents, workspace layout, issue templates, seeded requests, facilitator runbook |
+| `kaizen-tasks-product-skills` | Part 2 product skills packaged as a Claude Code plugin, Part 3 canvas and plan templates, synthetic data                 |
 
 Out of scope: see section 12.
 
@@ -223,47 +223,47 @@ These are requirements on the codebase, and they are also the content of the ski
 
 All settled. Do not reopen in the spec step.
 
-| # | Decision | Choice |
-|---|---|---|
-| D1 | Audience | PMs and product leads, 10 to 20, mixed hands-on |
-| D2 | Format | One session, 3 hours, 75 / 60 / 45 minutes |
-| D3 | Date | Within two weeks of 2026-09-08 |
-| D4 | PM tooling | Claude Code, Claude Desktop, Cowork available |
-| D5 | GitHub | Mike's personal account, public repos |
-| D6 | Repo topology | Two app repos with own `.claude/`, plus assembly-line repo, plus product-skills repo. All named `kaizen-tasks-*` |
-| D7 | Language | TypeScript everywhere |
-| D8 | Data | Railway Postgres, Redis as BullMQ queue and rate limiter, Homebrew locally |
-| D9 | AI breakdown UX | Auto-run on create, land as suggested, accept / edit / dismiss |
-| D10 | Agent | Sonnet 5, structured output, sees tags and open tasks, proposes tags |
-| D11 | Pipeline | Railway GitHub integration with wait-for-CI, GitHub Actions runs tests, Mike merges live |
-| D12 | Tests | Unit and API on PR, Playwright smoke on staging gating promotion |
-| D13 | Docs | Full set, blocking Stop hook, ADR when architecture change |
-| D14 | Intake | GitHub issue form, plus in-app request page if time allows |
-| D15 | Triage | Rank plus labels plus clarifying comments on issues |
-| D16 | Live run | No fallback, one full rehearsal |
-| D17 | Name | Kaizen Tasks |
-| D18 | Part 2 | `refine-request` hands-on, `synthesize-interviews` take-home, synthetic NICE CX data |
-| D19 | Part 3 | Lifecycle canvas plus 30/60/90 plan, paper, no ongoing commitment |
-| D20 | Deliverables now | Build all, push and deploy from here, runbook, rehearsal, slides later |
-| D21 | Auth and seed | Open registration plus one seeded demo user |
-| D22 | Ranking | Readiness score, architecture-change deferred |
-| D23 | Seeding | Four seeded requests of varied quality |
-| D24 | Part 2 surface | Claude Code skills, same folders work in Cowork, plugin-shaped for the marketplace later |
-| D25 | Part 3 medium | Printable PDF and markdown |
-| D26 | Railway | Mike's personal account |
-| D27 | Tooling | Install GitHub CLI and Railway CLI, git identity from GitHub account |
-| D28 | API key | Railway variables and git-ignored local `.env`, Mike pastes |
-| D29 | Local dev | Homebrew Postgres and Redis, no Docker |
-| D30 | Task hierarchy | One `tasks` table with `parent_id`, depth capped at two by a named constant, subtask routes folded into task routes |
-| D31 | Auth transport | Same-origin: web service proxies `/api/*` to the API over Railway private networking; first-party httpOnly refresh cookie; no CORS; API has no public domain |
-| D32 | Worker | BullMQ worker runs inside the API process behind `WORKER_ENABLED` |
-| D33 | Test database | Real local Postgres, truncate before each test; service containers in CI |
-| D34 | Disk layout | Workshop root is a plain folder; `webapp/` = assembly-line repo with `backend/` and `frontend/` nested and git-ignored; `product-skills/` at the root |
-| D35 | Node | Node 24 LTS everywhere, pinned by `.nvmrc`, for least maintenance |
-| D36 | AI budget | Per-user limit, session-wide budget, and an operator kill switch; task creation never fails because of AI |
-| D37 | Promotion gate | Per-repo `promote` workflow waits for staging to serve the candidate SHA, then runs the shared smoke package from the assembly-line repo |
-| D38 | Railway scope | Only a new project named `kaizen-tasks`; existing Railway projects are never touched. Railway work follows Railway's official agent skills |
-| D39 | Recovery buffer | 10 minutes of slack inside Part 1 with a cutoff rule; still no fallback PR or recording |
+| #   | Decision         | Choice                                                                                                                                                       |
+| --- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Audience         | PMs and product leads, 10 to 20, mixed hands-on                                                                                                              |
+| D2  | Format           | One session, 3 hours, 75 / 60 / 45 minutes                                                                                                                   |
+| D3  | Date             | Within two weeks of 2026-09-08                                                                                                                               |
+| D4  | PM tooling       | Claude Code, Claude Desktop, Cowork available                                                                                                                |
+| D5  | GitHub           | Mike's personal account, public repos                                                                                                                        |
+| D6  | Repo topology    | Two app repos with own `.claude/`, plus assembly-line repo, plus product-skills repo. All named `kaizen-tasks-*`                                             |
+| D7  | Language         | TypeScript everywhere                                                                                                                                        |
+| D8  | Data             | Railway Postgres, Redis as BullMQ queue and rate limiter, Homebrew locally                                                                                   |
+| D9  | AI breakdown UX  | Auto-run on create, land as suggested, accept / edit / dismiss                                                                                               |
+| D10 | Agent            | Sonnet 5, structured output, sees tags and open tasks, proposes tags                                                                                         |
+| D11 | Pipeline         | Railway GitHub integration with wait-for-CI, GitHub Actions runs tests, Mike merges live                                                                     |
+| D12 | Tests            | Unit and API on PR, Playwright smoke on staging gating promotion                                                                                             |
+| D13 | Docs             | Full set, blocking Stop hook, ADR when architecture change                                                                                                   |
+| D14 | Intake           | GitHub issue form, plus in-app request page if time allows                                                                                                   |
+| D15 | Triage           | Rank plus labels plus clarifying comments on issues                                                                                                          |
+| D16 | Live run         | No fallback, one full rehearsal                                                                                                                              |
+| D17 | Name             | Kaizen Tasks                                                                                                                                                 |
+| D18 | Part 2           | `refine-request` hands-on, `synthesize-interviews` take-home, synthetic NICE CX data                                                                         |
+| D19 | Part 3           | Lifecycle canvas plus 30/60/90 plan, paper, no ongoing commitment                                                                                            |
+| D20 | Deliverables now | Build all, push and deploy from here, runbook, rehearsal, slides later                                                                                       |
+| D21 | Auth and seed    | Open registration plus one seeded demo user                                                                                                                  |
+| D22 | Ranking          | Readiness score, architecture-change deferred                                                                                                                |
+| D23 | Seeding          | Four seeded requests of varied quality                                                                                                                       |
+| D24 | Part 2 surface   | Claude Code skills, same folders work in Cowork, plugin-shaped for the marketplace later                                                                     |
+| D25 | Part 3 medium    | Printable PDF and markdown                                                                                                                                   |
+| D26 | Railway          | Mike's personal account                                                                                                                                      |
+| D27 | Tooling          | Install GitHub CLI and Railway CLI, git identity from GitHub account                                                                                         |
+| D28 | API key          | Railway variables and git-ignored local `.env`, Mike pastes                                                                                                  |
+| D29 | Local dev        | Homebrew Postgres and Redis, no Docker                                                                                                                       |
+| D30 | Task hierarchy   | One `tasks` table with `parent_id`, depth capped at two by a named constant, subtask routes folded into task routes                                          |
+| D31 | Auth transport   | Same-origin: web service proxies `/api/*` to the API over Railway private networking; first-party httpOnly refresh cookie; no CORS; API has no public domain |
+| D32 | Worker           | BullMQ worker runs inside the API process behind `WORKER_ENABLED`                                                                                            |
+| D33 | Test database    | Real local Postgres, truncate before each test; service containers in CI                                                                                     |
+| D34 | Disk layout      | Workshop root is a plain folder; `webapp/` = assembly-line repo with `backend/` and `frontend/` nested and git-ignored; `product-skills/` at the root        |
+| D35 | Node             | Node 24 LTS everywhere, pinned by `.nvmrc`, for least maintenance                                                                                            |
+| D36 | AI budget        | Per-user limit, session-wide budget, and an operator kill switch; task creation never fails because of AI                                                    |
+| D37 | Promotion gate   | Per-repo `promote` workflow waits for staging to serve the candidate SHA, then runs the shared smoke package from the assembly-line repo                     |
+| D38 | Railway scope    | Only a new project named `kaizen-tasks`; existing Railway projects are never touched. Railway work follows Railway's official agent skills                   |
+| D39 | Recovery buffer  | 10 minutes of slack inside Part 1 with a cutoff rule; still no fallback PR or recording                                                                      |
 
 ## Appendix B. Assumptions made without asking
 

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature request form
+    url: https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new?template=feature-request.yml
+    about: Every request goes through the form so the triage skill can score it.

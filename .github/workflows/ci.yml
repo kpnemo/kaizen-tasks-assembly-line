@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            smoke/package-lock.json
+
+      - name: Install root tooling
+        run: npm ci
+
+      - name: Install the smoke package
+        run: npm ci
+        working-directory: smoke
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: smoke
+
+      - name: Lint the smoke package
+        run: npm run lint
+        working-directory: smoke
+
+      - name: Typecheck the smoke package
+        run: npm run typecheck
+        working-directory: smoke
+
+      - name: Validate the feature request form
+        run: npm run check:issue-form
+
+      - name: Assert the rubric has a version line
+        run: npm run check:rubric

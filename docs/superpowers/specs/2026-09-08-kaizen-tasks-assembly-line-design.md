@@ -62,7 +62,7 @@ webapp/
 
 `CLAUDE.md` at the root, under one page: the two nested repos and what each owns; how to run both locally (backend on 3000, frontend dev on 5173 proxying to it); the shared conventions in five lines (envelopes, TDD, docs-check, additive migrations, contract copy); the exact paths of the per-repo skills; the rule that the API changes first when both change; the rule that nothing here merges pull requests.
 
-`scripts/setup-workspace.sh`: for each of `backend` and `frontend`, clone `git@github.com:kpnemo/kaizen-tasks-api.git` or `kaizen-tasks-web.git` if the folder is missing; verify `nvm` and switch to 24; verify Postgres and Redis answer; `createdb kaizen_dev` and `kaizen_test` if absent; run `npm ci` in both; print the next commands.
+`scripts/setup-workspace.sh`: for each of `backend` and `frontend`, clone `kpnemo/kaizen-tasks-api` or `kpnemo/kaizen-tasks-web` with `gh repo clone` (which honours the user's configured git protocol) if the folder is missing; verify `nvm` and switch to 24; verify Postgres and Redis answer; `createdb kaizen_dev` and `kaizen_test` if absent; run `npm ci` in both; print the next commands.
 
 ## 4. Intake
 
@@ -175,7 +175,7 @@ Seeded requests, each a markdown file with front matter and the form's sections:
 
 `scripts/protect-branches.sh <repo>`: for `develop` and `main` on `kpnemo/kaizen-tasks-api` and `kpnemo/kaizen-tasks-web`, `gh api -X PUT repos/<repo>/branches/<branch>/protection` with required status checks `ci` on both, plus `promote` on `main`, required pull request with zero required approvals, no force pushes, no deletions, and enforce for admins off so the facilitator can merge when checks are green.
 
-`.github/workflows/ci.yml`: on pull requests and pushes to `main`: `npm ci` and `npx playwright install --with-deps chromium` then `npm run lint` and `npm run typecheck` in `smoke/`; validate `feature-request.yml` parses and has the five fields; assert `rubric/readiness.md` has a `version:` line. No deploys.
+`.github/workflows/ci.yml`: on pull requests and pushes to `develop` and `main`: `npm ci` and `npx playwright install --with-deps chromium` then `npm run lint` and `npm run typecheck` in `smoke/`; validate `feature-request.yml` parses and has the five fields; assert `rubric/readiness.md` has a `version:` line. No deploys.
 
 ## 10. Railway setup procedure
 
