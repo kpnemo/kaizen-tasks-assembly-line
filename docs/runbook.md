@@ -77,6 +77,8 @@ git -C frontend push -u origin release/<version> && gh pr create --repo kpnemo/k
 gh pr checks <api release pr url> --watch && gh pr merge <api release pr url> --merge         # Mike, after ci is green
 gh pr checks <web release pr url> --watch && gh pr merge <web release pr url> --merge         # Mike, after ci is green
 scripts/check-versions.sh                                                                        # versions match: <version>
+railway deployment list --service api --environment staging --limit 1 --json | jq '.[0].status'   # wait for SUCCESS
+railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'   # wait for SUCCESS
 curl -fsS https://web-staging-52c0.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'   # after the API deploy
 curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'              # after the web deploy
 # promotion, API first, then web; each promote job runs the smoke against staging (footer version included)
