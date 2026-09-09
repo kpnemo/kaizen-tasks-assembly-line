@@ -4,15 +4,16 @@ Three hours: Part 1 live run (75 minutes), Part 2 hands-on (60 minutes), Part 3 
 
 ## Fixed facts
 
-| Fact              | Value                                                                                        |
-| ----------------- | -------------------------------------------------------------------------------------------- |
-| Production web    | https://web-production-7ef71.up.railway.app                                                  |
-| Staging web       | https://web-staging-52c0.up.railway.app                                                      |
-| Issue form        | https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new?template=feature-request.yml |
-| Triage board      | the pinned issue in https://github.com/kpnemo/kaizen-tasks-assembly-line/issues              |
-| Demo user         | `demo@kaizen.local`, password is the `SEED_DEMO_PASSWORD` Railway variable                   |
-| Product skills    | `git clone https://github.com/kpnemo/kaizen-tasks-product-skills.git`                        |
-| Rehearsal timings | filled after the rehearsal (section 8)                                                       |
+| Fact               | Value                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Production web     | https://web-production-7ef71.up.railway.app                                                                         |
+| Staging web        | https://web-staging-52c0.up.railway.app                                                                             |
+| Issue form         | https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new?template=feature-request.yml                        |
+| Triage board       | the pinned issue in https://github.com/kpnemo/kaizen-tasks-assembly-line/issues                                     |
+| Demo user          | `demo@kaizen.local`, password is the `SEED_DEMO_PASSWORD` Railway variable                                          |
+| Product skills     | `git clone https://github.com/kpnemo/kaizen-tasks-product-skills.git`                                               |
+| Version read-backs | `curl -fsS <web url>/version.json \| jq -r .version` and `curl -fsS <web url>/api/v1/health \| jq -r .data.version` |
+| Rehearsal timings  | filled after the rehearsal (section 8)                                                                              |
 
 Terminals to have open before the session, all at `webapp/`: T1 Claude Code (`claude`), T2 a shell for `gh` and `curl`, T3 `git -C backend log --oneline -3` and the web equivalent for showing SHAs. Browser tabs: production web, staging web, the assembly-line issues page, the two app repos' Actions pages, the Railway project.
 
@@ -20,6 +21,7 @@ Terminals to have open before the session, all at `webapp/`: T1 Claude Code (`cl
 
 ### T minus one day
 
+- [ ] Order of harness promotions: this repository's `main` only receives a smoke change after the app change it asserts on is live on staging (the footer version step 1b needs the web footer and the API `version` field there first); otherwise both app repos' `promote` gates fail until it is.
 - [ ] `kaizen-tasks-assembly-line` `main` carries the smoke package before any promotion: `gh api 'repos/kpnemo/kaizen-tasks-assembly-line/contents/smoke/package.json?ref=main' --jq .name` prints `package.json` (both app repos' `promote` workflows check this repo out at `main` and run the smoke package from there; re-point `main` at `develop` any time `smoke/` changes).
 - [ ] `STAGING_WEB_URL` is set on both app repos: `gh variable list --repo kpnemo/kaizen-tasks-api` and `gh variable list --repo kpnemo/kaizen-tasks-web` both show `STAGING_WEB_URL` (the API repo's `promote` job fails at step 1 without it; see `docs/cicd-log.md` for when it was set).
 - [ ] Local prerequisites for a live `implement-issue` run: Postgres answers (`pg_isready`) and Redis answers (`redis-cli ping` returns `PONG`); both nested trees are clean and on `develop` (`git -C backend status --porcelain` and `git -C frontend status --porcelain` are both empty, and `git -C backend rev-list --left-right --count origin/develop...HEAD` and the frontend equivalent both print `0 0`); `nvm use` succeeds in both `backend/` and `frontend/`.
@@ -45,33 +47,47 @@ done
 
 - [ ] Raise the session budget on production: `railway variable set AI_GLOBAL_LIMIT_PER_HOUR=600 --service api --environment production` (redeploys `api`; wait for `SUCCESS` in `railway deployment list --service api --environment production --limit 1 --json`).
 - [ ] Reset the demo user on production, in Mike's terminal with his token: `curl -fsS -X POST https://web-production-7ef71.up.railway.app/api/v1/admin/seed-reset -H "x-admin-token: $ADMIN_TOKEN" | jq .` prints `{ "data": { "demoUserId": "<uuid>" } }`.
-- [ ] Smoke green against both environments in the last hour, following `smoke/README.md`'s full sequence: `cd smoke && npm ci && npx playwright install --with-deps chromium && SMOKE_BASE_URL=https://web-staging-52c0.up.railway.app SMOKE_AI_TIMEOUT_MS=180000 npm test && SMOKE_BASE_URL=https://web-production-7ef71.up.railway.app SMOKE_AI_TIMEOUT_MS=180000 npm test` (`nvm use` first if not already on Node 24). The production half cannot pass until production has been promoted at least once (see the smoke-on-`main` row above).
+- [ ] Smoke green against both environments in the last hour, following `smoke/README.md`'s full sequence: `cd smoke && npm ci && npx playwright install --with-deps chromium && NODE_OPTIONS=--use-system-ca SMOKE_BASE_URL=https://web-staging-52c0.up.railway.app SMOKE_AI_TIMEOUT_MS=180000 npm test && NODE_OPTIONS=--use-system-ca SMOKE_BASE_URL=https://web-production-7ef71.up.railway.app SMOKE_AI_TIMEOUT_MS=180000 npm test` (`NODE_OPTIONS=--use-system-ca` is for this laptop's TLS-inspecting proxy; without it step 1b fails on a self-signed certificate) (`nvm use` first if not already on Node 24). The production half cannot pass until production has been promoted at least once (see the smoke-on-`main` row above).
 - [ ] Log in as the demo user in the production tab; the tour tasks are there.
 - [ ] `gh auth status` and `railway whoami` succeed in T2. Claude Code open at `webapp/` in T1 with `/hooks` showing the Stop and PostToolUse hooks.
 - [ ] Projector font size checked: terminal at 18pt or larger, browser zoom 125%.
+- [ ] `scripts/check-versions.sh` prints `versions match`, and staging's `/version.json` and health report that version.
 
 ## 2. Part 1, minute by minute (75 minutes)
 
-| Minute   | Segment                 | Facilitator                                                                                                                                                                                                                                                                                                                                                                                | Room                                                                       |
-| -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| 0 to 8   | Framing and app tour    | State the goal: a request from this room reaches production in the next hour with tests and gates, no slides. Open production as the demo user. Show a task with accepted AI steps, one with pending suggestions and its rationale on hover, one failed with retry. Create a task live and let the thinking chip resolve.                                                                  | Watches                                                                    |
-| 8 to 20  | The room files requests | Put the issue form URL on screen. Walk the five fields (Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role); say that acceptance criteria decide the ranking. Show one seeded request as an example of a clear one.                                                                                                                                                  | Registers on production, files requests through the form                   |
-| 20 to 28 | Triage on screen        | In T1: `/triage-requests`. Narrate the rubric while it runs. Open the Triage board. Read the top three and the recommended one. Open one low-clarity issue and read the questions the skill posted.                                                                                                                                                                                        | Watches; the authors of unclear requests answer the questions in the issue |
-| 28 to 53 | Implement on screen     | In T1: `/implement-issue <top request number>`. Narrate the three moments (section 3): the failing test, the docs-check gate, the pull request. Keep the room on what the transcript shows, not on the code.                                                                                                                                                                               | Watches; questions held to the buffer                                      |
-| 53 to 65 | Ship                    | Open the pull request; checks green; merge to `develop` (Mike). Show Railway staging deployment `WAITING` then building. Show `/version.json` or health on staging with the new SHA. Open the `develop` to `main` pull request; `promote` runs the smoke against staging; show the Playwright steps in the Actions log. Merge to `main`. Show production with the new SHA and the feature. | Watches the pipeline                                                       |
-| 65 to 75 | Buffer                  | Absorb CI, provider, or Railway slowness. Cutoff rule: at minute 65 state which live steps are still incomplete and move to Part 2; whatever finishes later is shown at the start of Part 2.                                                                                                                                                                                               | Questions                                                                  |
+| Minute   | Segment                 | Facilitator                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Room                                                                       |
+| -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| 0 to 8   | Framing and app tour    | State the goal: a request from this room reaches production in the next hour with tests and gates, no slides. Open production as the demo user. Show a task with accepted AI steps, one with pending suggestions and its rationale on hover, one failed with retry. Create a task live and let the thinking chip resolve.                                                                                                                                                                                                                                                                                                                  | Watches                                                                    |
+| 8 to 20  | The room files requests | Put the issue form URL on screen. Walk the five fields (Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role); say that acceptance criteria decide the ranking. Show one seeded request as an example of a clear one.                                                                                                                                                                                                                                                                                                                                                                                                  | Registers on production, files requests through the form                   |
+| 20 to 28 | Triage on screen        | In T1: `/triage-requests`. Narrate the rubric while it runs. Open the Triage board. Read the top three and the recommended one. Open one low-clarity issue and read the questions the skill posted.                                                                                                                                                                                                                                                                                                                                                                                                                                        | Watches; the authors of unclear requests answer the questions in the issue |
+| 28 to 53 | Implement on screen     | In T1: `/implement-issue <top request number>`. Narrate the three moments (section 3): the failing test, the docs-check gate, the pull request. Keep the room on what the transcript shows, not on the code.                                                                                                                                                                                                                                                                                                                                                                                                                               | Watches; questions held to the buffer                                      |
+| 53 to 65 | Ship                    | Open the pull request; checks green; merge to `develop` (Mike). Show Railway staging deployment `WAITING` then building. Show `/version.json` or health on staging with the new SHA. Cut the release in both repos with `/release-notes` (same version) on a branch each, open the two release pull requests, merge them to `develop` (Mike), wait for both staging deployments, read the version back. Open the `develop` to `main` pull request; `promote` runs the smoke against staging; show the Playwright steps in the Actions log. Merge to `main`. Show production with the new SHA and the feature and the footer's new version. | Watches the pipeline                                                       |
+| 65 to 75 | Buffer                  | Absorb CI, provider, or Railway slowness. Cutoff rule: at minute 65 state which live steps are still incomplete and move to Part 2; whatever finishes later is shown at the start of Part 2.                                                                                                                                                                                                                                                                                                                                                                                                                                               | Questions                                                                  |
 
-Commands used in the Ship segment, in order:
+Commands used in the Ship segment, in order (API first whenever the API changed; a web-only feature still cuts both releases so the two versions stay equal):
 
 ```bash
 gh pr view <pr url> --json statusCheckRollup --jq '.statusCheckRollup[] | "\(.name) \(.conclusion)"'
 gh pr merge <pr url> --squash --delete-branch                      # Mike, after checks are green
 railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'
 curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r .commit
-gh pr create --repo kpnemo/kaizen-tasks-web --base main --head develop --title "release: <date>" --body "Promote develop to main"
-gh pr checks <promote pr url> --watch
-gh pr merge <promote pr url> --merge                                # Mike
-curl -fsS https://web-production-7ef71.up.railway.app/version.json | jq -r .commit
+# release cut, both repos, same version (run /release-notes in each on a branch, then):
+git -C backend push -u origin release/<version> && gh pr create --repo kpnemo/kaizen-tasks-api --base develop --head release/<version> --title "chore: release <version>" --body "Cut <version>"
+git -C frontend push -u origin release/<version> && gh pr create --repo kpnemo/kaizen-tasks-web --base develop --head release/<version> --title "chore: release <version>" --body "Cut <version>"
+gh pr checks <api release pr url> --watch && gh pr merge <api release pr url> --merge         # Mike, after ci is green
+gh pr checks <web release pr url> --watch && gh pr merge <web release pr url> --merge         # Mike, after ci is green
+scripts/check-versions.sh                                                                        # versions match: <version>
+railway deployment list --service api --environment staging --limit 1 --json | jq '.[0].status'   # wait for SUCCESS
+railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'   # wait for SUCCESS
+curl -fsS https://web-staging-52c0.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'   # after the API deploy
+curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'              # after the web deploy
+# promotion, API first, then web; each promote job runs the smoke against staging (footer version included)
+gh pr create --repo kpnemo/kaizen-tasks-api --base main --head develop --title "release: <version>" --body "Promote develop to main"
+gh pr checks <api promote pr url> --watch && gh pr merge <api promote pr url> --merge          # Mike
+gh pr create --repo kpnemo/kaizen-tasks-web --base main --head develop --title "release: <version>" --body "Promote develop to main"
+gh pr checks <web promote pr url> --watch && gh pr merge <web promote pr url> --merge          # Mike
+curl -fsS https://web-production-7ef71.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'
+curl -fsS https://web-production-7ef71.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'
 gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state --jq .state   # expect CLOSED (verification L1)
 gh issue edit <n> --repo kpnemo/kaizen-tasks-assembly-line --add-label shipped --remove-label implementing
 ```
@@ -96,6 +112,8 @@ If the issue is still `OPEN` after the merge, run `gh issue close <n> --repo kpn
 
 **Production.** "The same hash, on the production URL. Idea to production, with tests and gates, in under an hour."
 
+**The footer version.** "The footer reads the version and commit of both halves; when they differ during a rollout, the API part turns amber, and the smoke test refuses a promotion where they disagree."
+
 ## 4. Failure page
 
 | Symptom                                                                                                                                                                                         | Do this                                                                                                                                                                                                      | Say this                                                                                                                               |
@@ -113,6 +131,8 @@ If the issue is still `OPEN` after the merge, run `gh issue close <n> --repo kpn
 Dashboard: open the project `kaizen-tasks`, select the environment, click the service, Deployments tab, find the previous deployment with a green check, open its menu, Redeploy. It is live within about a minute; `/version.json` or health shows the previous commit.
 
 Why it is safe: migrations are additive only (API ADR 0004), so the previous application runs against the already-migrated database, and API changes are additive, so the previous web build keeps working against a newer API. Rollback never touches data.
+
+After a rollback the footer shows the previous version and the API part goes amber until both halves are rolled back or re-promoted together.
 
 ## 6. Part 2 handoff (60 minutes)
 

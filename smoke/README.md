@@ -5,6 +5,7 @@ One Playwright test, Chromium only, run against a deployed Kaizen Tasks web URL.
 ## What it does, in order
 
 1. Opens the base URL and expects the login page.
+   1b. Reads `GET /api/v1/health` and expects the footer (`role contentinfo`) to print that version and the API's short commit. Land the app change on staging before promoting this step to `main`, or both promote gates fail.
 2. Registers `smoke+<timestamp>@kaizen.local` with a fixed password and the display name "Smoke".
 3. Expects the task list and creates the task "Prepare the quarterly business review deck for the leadership team" with a two-sentence description.
 4. Expects the row with a thinking chip. Unless fast mode, polls the row until the chip leaves thinking, within the AI timeout. Fails on a failed chip or on timeout. Accepts a skipped chip as a pass with a console note.
@@ -18,8 +19,11 @@ nvm use
 npm ci
 npx playwright install --with-deps chromium
 SMOKE_BASE_URL=https://<web domain> npm test          # headless
+NODE_OPTIONS=--use-system-ca SMOKE_BASE_URL=https://<web domain> npm test   # behind a TLS-inspecting proxy (corporate laptop)
 SMOKE_BASE_URL=http://localhost:5173 npm run test:headed   # rehearsal, watch it
 ```
+
+Step 1b reads health with Playwright's Node request client, which does not read the system trust store; behind a TLS-inspecting proxy it fails with `self-signed certificate in certificate chain` unless Node runs with `--use-system-ca`. The browser steps are unaffected, and GitHub Actions needs no flag.
 
 | Variable              | Required | Default | Meaning                                      |
 | --------------------- | -------- | ------- | -------------------------------------------- |
