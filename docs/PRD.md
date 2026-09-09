@@ -108,7 +108,7 @@ Kaizen Tasks is a personal task manager where every big task is broken into smal
 
 ### 5.5 Non-functional
 
-- R19. `GET /health` returns status, git commit SHA, version, and environment name. The smoke test uses the SHA to know the new build is live.
+- R19. `GET /api/v1/health` returns status, git commit SHA, version, and environment name. The smoke test uses the SHA to know the new build is live.
 - R20. Structured JSON logging with a request ID on every request and job.
 - R21. Basic hardening: helmet, CORS restricted to the web origin per environment, body size limits, password hashing with bcrypt or argon2.
 - R22. The web app must be usable on a laptop screen projected in a room: large type, high contrast, no hover-only interactions for critical controls.

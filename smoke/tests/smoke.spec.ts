@@ -55,8 +55,12 @@ test("register, create a task, wait for the assistant, accept a suggestion, log 
     const body = (await res.json()) as { data: { version: string; commit: string } };
     expect(body.data.version).toMatch(/^\d+\.\d+\.\d+$/);
     const footer = page.getByRole("contentinfo");
-    await expect(footer).toContainText(`v${body.data.version}`);
-    await expect(footer).toContainText(`api ${body.data.commit.slice(0, 7)}`);
+    // Whole tokens only: "v1.2.3" must not be satisfied by "v1.2.30", nor "api abc1234" by a longer hash.
+    const escaped = body.data.version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await expect(footer).toContainText(new RegExp(`v${escaped}(?!\\d)`));
+    await expect(footer).toContainText(
+      new RegExp(`api ${body.data.commit.slice(0, 7)}(?![0-9a-f])`),
+    );
   });
 
   await test.step("2. register a fresh user", async () => {
