@@ -74,7 +74,8 @@ curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r .commit
 # release cut, both repos, same version (run /release-notes in each on a branch, then):
 git -C backend push -u origin release/<version> && gh pr create --repo kpnemo/kaizen-tasks-api --base develop --head release/<version> --title "chore: release <version>" --body "Cut <version>"
 git -C frontend push -u origin release/<version> && gh pr create --repo kpnemo/kaizen-tasks-web --base develop --head release/<version> --title "chore: release <version>" --body "Cut <version>"
-gh pr merge <api release pr url> --merge && gh pr merge <web release pr url> --merge           # Mike
+gh pr checks <api release pr url> --watch && gh pr merge <api release pr url> --merge         # Mike, after ci is green
+gh pr checks <web release pr url> --watch && gh pr merge <web release pr url> --merge         # Mike, after ci is green
 scripts/check-versions.sh                                                                        # versions match: <version>
 curl -fsS https://web-staging-52c0.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'   # after the API deploy
 curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'              # after the web deploy
