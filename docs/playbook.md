@@ -101,14 +101,21 @@ curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r '.version
 
 ```
 gh pr create --repo kpnemo/kaizen-tasks-api --base main --head develop --title "release: <version>" --body "Promote develop to main"
-until [ "$(gh pr view <api promote pr url> --json statusCheckRollup --jq '.statusCheckRollup | length')" -ge 2 ]; do sleep 10; done
-gh pr checks <api promote pr url> --watch && gh pr merge <api promote pr url> --merge
+# both required gates must have registered before --watch means anything; bounded at 2 minutes
+wait_for_gates() {   # $1 = promotion pull request url
+  for i in $(seq 1 12); do
+    gh pr view "$1" --json statusCheckRollup \
+      --jq '[.statusCheckRollup[].name] | (index("ci") != null and index("promote") != null)' | grep -qx true && return 0
+    sleep 10
+  done
+  echo "STOP: ci and promote have not registered on $1 after 2 minutes. Do not merge; open the Actions tab."; return 1
+}
+wait_for_gates <api promote pr url> && gh pr checks <api promote pr url> --watch && gh pr merge <api promote pr url> --merge
 gh pr create --repo kpnemo/kaizen-tasks-web --base main --head develop --title "release: <version>" --body "Promote develop to main"
-until [ "$(gh pr view <web promote pr url> --json statusCheckRollup --jq '.statusCheckRollup | length')" -ge 2 ]; do sleep 10; done
-gh pr checks <web promote pr url> --watch && gh pr merge <web promote pr url> --merge
+wait_for_gates <web promote pr url> && gh pr checks <web promote pr url> --watch && gh pr merge <web promote pr url> --merge
 ```
 
-- **SEE** the `until` loop return within a few seconds (the checks register just after the pull request exists; without it `--watch` finds nothing and `main`'s policy refuses the merge), then the `promote` job running the Playwright smoke against staging step by step, then the two merges, API first
+- **SEE** `wait_for_gates` return within a few seconds once both `ci` and `promote` have registered by name (without it `--watch` finds nothing and `main`'s policy refuses the merge; counting checks is not enough, Railway's own check makes two), then the `promote` job running the Playwright smoke against staging step by step, then the two merges, API first
 - **SAY** "A browser is doing your acceptance test right now. Only then may main merge."
 
 ## 12. Production and the issue
@@ -136,17 +143,17 @@ then open the Triage board and flip that issue's row, Status `staging` → `ship
 
 ## If it breaks
 
-| Symptom                                                    | Recovery in one line                                                                                      |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| The in-app assistant is slow or toasts                     | Click "Skip the interview, fill the form" and keep going with the plain form.                             |
-| The brainstorming interview stalls or asks something silly | Answer "use the issue text"; the skill accepts that and moves to the approaches.                          |
-| CI red on `develop`                                        | Open the failing job's log on screen, fix forward if it is one line, otherwise move on and say so.        |
-| `promote` red on the smoke                                 | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote. |
-| Railway slow (`BUILDING` past five minutes)                | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.             |
-| A bug report was filed instead of a request                | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                     |
-| `implementing` or `staging` is still there after the wait  | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later. |
-| The issue reopened itself, "Reopened by the harness"       | `shipped` was not on it when it closed. Add the label, close again; if you did not close it, a merge did. |
-| `staging` never arrives after both halves are on staging   | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.            |
+| Symptom                                                    | Recovery in one line                                                                                                   |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| The in-app assistant is slow or toasts                     | Click "Skip the interview, fill the form" and keep going with the plain form.                                          |
+| The brainstorming interview stalls or asks something silly | Answer "use the issue text"; the skill accepts that and moves to the approaches.                                       |
+| CI red on `develop`                                        | Open the failing job's log on screen, fix forward if it is one line, otherwise move on and say so.                     |
+| `promote` red on the smoke                                 | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote.              |
+| Railway slow (`BUILDING` past five minutes)                | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.                          |
+| A bug report was filed instead of a request                | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                                  |
+| `implementing` or `staging` is still there after the wait  | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later.              |
+| The issue reopened itself, "Reopened by the harness"       | Before the read-back: a merge closed it, correct, leave it open and keep promoting. After: add `shipped`, close again. |
+| `staging` never arrives after both halves are on staging   | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.                         |
 
 ## Numbers to keep in mind
 

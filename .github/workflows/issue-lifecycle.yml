@@ -56,10 +56,20 @@ jobs:
           # Was this issue ever taken into work? Current labels answer it most of the time, but a
           # not-planned close strips `implementing` without adding anything, so fall back to the
           # timeline: a `labeled` event is permanent.
+          #
+          # `--paginate` prints one JSON array PER PAGE, so gh's own `--jq '... | length'` would
+          # print one count per page ("1\n0" on any issue past 30 events, which a workshop issue
+          # reaches easily) and the numeric test below would die with "integer expression expected".
+          # `--slurp` wraps the pages into one array; it cannot be combined with gh's `--jq`, hence
+          # the pipe to jq, and `.[][]` flattens page-of-events into events.
           taken() {
             if has implementing || has staging || has shipped; then return 0; fi
-            [ "$(gh api "repos/$REPO/issues/$NUMBER/timeline" --paginate --jq \
-                 '[.[] | select(.event=="labeled" and (.label.name=="implementing" or .label.name=="staging"))] | length')" -gt 0 ]
+            local count
+            count=$(gh api "repos/$REPO/issues/$NUMBER/timeline" --paginate --slurp |
+              jq '[.[][] | select(.event=="labeled" and (.label.name=="implementing" or .label.name=="staging"))] | length') \
+              || { echo "timeline query failed for #$NUMBER" >&2; exit 1; }
+            case "$count" in '' | *[!0-9]*) echo "unexpected timeline count: $count" >&2; exit 1 ;; esac
+            [ "$count" -gt 0 ]
           }
 
           if [ "$STATE" = CLOSED ]; then
