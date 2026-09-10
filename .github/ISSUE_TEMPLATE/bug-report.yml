@@ -1,0 +1,51 @@
+name: Bug report
+description: Report something that is broken in Kaizen Tasks. Bugs skip the readiness rubric and go straight to implementation.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Write what you saw, not what you think caused it. Reproduction steps are what let the agent find the root cause.
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: What you saw, in the order you saw it, including any message on screen
+      placeholder: I clicked ... and the task stayed at ... with the message ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: What should have happened instead
+      placeholder: The task should have moved to ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps someone else can follow to see it happen
+      placeholder: |
+        1. Log in as ...
+        2. Open ...
+        3. Click ...
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: Staging or production, and the browser you used
+      placeholder: Production, Chrome 140 on macOS
+    validations:
+      required: true
+  - type: input
+    id: role
+    attributes:
+      label: Your role
+      description: Your role, so the agent can phrase its questions for you
+      placeholder: Product manager, contact-center analytics
+    validations:
+      required: false

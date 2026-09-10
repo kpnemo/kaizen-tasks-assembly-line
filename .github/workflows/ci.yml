@@ -42,7 +42,7 @@ jobs:
         run: npm run typecheck
         working-directory: smoke
 
-      - name: Validate the feature request form
+      - name: Validate the issue forms
         run: npm run check:issue-form
 
       - name: Assert the rubric has a version line

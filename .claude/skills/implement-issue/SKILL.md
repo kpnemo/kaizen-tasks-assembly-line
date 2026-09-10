@@ -1,110 +1,190 @@
 ---
 name: implement-issue
-description: Implement one feature request end to end across both repos with TDD, open pull requests, never merge
+description: Route one issue through the superpowers skills — brainstorm, spec, plan and TDD for a request, systematic debugging for a bug — open pull requests, never merge
 argument-hint: "<issue number>"
 ---
 
 # implement-issue
 
-Take one issue from `kpnemo/kaizen-tasks-assembly-line`, restate its acceptance criteria, implement it test-first in the affected nested repos using their own skills, run their full checks, open one pull request per affected repo, and stop.
+Take one issue from `kpnemo/kaizen-tasks-assembly-line`, mark it in progress, and route it through the superpowers skills installed in this Claude Code: a feature request goes interview, approaches, spec, plan, then test-first execution; a bug goes to systematic debugging. Both paths end the same way: the nested repos' own skills, their full checks, one pull request per affected repo, and stop.
+
+This skill routes. It does not restate what the superpowers skills say: invoke each by name with the Skill tool and follow it as written.
 
 Constants:
 
 - `REPO=kpnemo/kaizen-tasks-assembly-line`
 - Nested repos: `backend/` is `kpnemo/kaizen-tasks-api`; `frontend/` is `kpnemo/kaizen-tasks-web`. Base branch `develop` in both.
-- Branch name: `feat/<n>-<slug>` where `<slug>` is the issue title lowercased, non-alphanumerics replaced by `-`, at most 40 characters.
+- Branch name: `feat/<n>-<slug>` where `<slug>` is the issue title lowercased, non-alphanumerics replaced by `-`, at most 40 characters. The same branch name in every repo, this one included.
+- Spec: `docs/superpowers/specs/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Plan: `docs/superpowers/plans/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Both in this workspace repo.
 - Working directory: the workspace root. Run every npm command inside the nested repo after `nvm use`.
 
 ## Hard rules
 
-- Never run `gh pr merge`. Never push to `develop` or `main`. Never edit files outside `backend/` and `frontend/`. Never commit in the workspace repo.
+- Never run `gh pr merge`. Never push to `develop` or `main`. Never edit files outside `backend/`, `frontend/`, and this repo's `docs/superpowers/`.
+- In this workspace repo commit only the spec and the plan, on `feat/<n>-<slug>`, and open them as a docs-only pull request.
 - Never guess at an untestable criterion; stop and ask.
+- One question at a time, through the AskUserQuestion tool when it is available, a numbered list otherwise.
 - Show the failing test output in the transcript before writing implementation code, and the passing output after. The transcript is what the room sees.
-- Every commit ends with the two trailer lines:
+- Every commit ends with the trailer line:
 
 ```
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 ```
 
-## Step 1: Restate the acceptance criteria
+## Milestone comments
+
+The issue is the story the room follows, so every milestone lands on it as one short comment, in this fixed shape and nothing more (no transcripts, no diffs):
+
+| When                                         | Comment                                                                                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Step 2, decision time                        | `Taken into work: implementing through /implement-issue <n>. Branches: <repo> feat/<n>-<slug>, ... Pull requests will reference this issue and close it on merge.` |
+| Step 5, after the interview                  | `Interview done: <k> questions; approach chosen: <one line>.`                                                                                                      |
+| Step 5, after the spec and plan are approved | `Spec and plan approved: <spec path>, <plan path> on feat/<n>-<slug>. Docs pull request: <url>.`                                                                   |
+| Step 8, as each pull request opens           | `Pull request opened: <url>`                                                                                                                                       |
+| Runbook Ship, after the promotion            | `Shipped in <promotion pr url>; production serves <version>.` (the facilitator, not this skill)                                                                    |
+
+These are new comments. Never edit or reuse the triage comment, which is upserted by its marker `<!-- kaizen-triage -->`.
+
+## Step 1: Read the issue and classify
 
 ```bash
 gh issue view <n> --repo $REPO --json title,body,labels
 ```
 
+Print `Start: $(date +%H:%M)`, then the path:
+
+- Labels include `feature-request` (the request form's five sections: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role) → `Path: request`. Steps 3, 5, 7, 8.
+- Labels include `bug` (the bug form's five sections: What happened, What you expected, Steps to reproduce, Where, Your role) → `Path: bug`. Steps 6, 7, 8.
+- Neither label, or both: print the sections the body actually has and ask the facilitator which path, then follow the answer.
+
+## Step 2: Take the issue into work
+
+Before the interview, before any code:
+
+```bash
+gh issue edit <n> --repo $REPO --add-label implementing --add-assignee @me
+```
+
+The Triage board reads `implementing` from this label, so the room sees the status move before the work starts. Never set `shipped`: the runbook's Ship block does that after the merge.
+
+Then create the working branch in each repo the request touches, **through GitHub**, so it shows under **Development** on the issue at once. Guess the repos from the request now (schema, queue, auth, prompt, proxy: `kaizen-tasks-api`; router, client, Caddyfile: `kaizen-tasks-web`); if the spec later pulls in the other repo, run the same block for it then. Resolve every id at run time, never hardcode one:
+
+```bash
+N=<n>; SLUG=<slug>
+ISSUE_ID=$(gh api graphql -f query='{ repository(owner:"kpnemo", name:"kaizen-tasks-assembly-line"){ issue(number:'"$N"'){ id } } }' --jq .data.repository.issue.id)
+for APP_REPO in kaizen-tasks-api kaizen-tasks-web; do   # only the affected ones
+  read REPO_ID OID < <(gh api graphql -f query='{ repository(owner:"kpnemo", name:"'"$APP_REPO"'"){ id ref(qualifiedName:"refs/heads/develop"){ target{ oid } } } }' --jq '.data.repository | "\(.id) \(.ref.target.oid)"')
+  gh api graphql -f query='mutation($issue:ID!, $repo:ID!, $oid:GitObjectID!, $name:String!){ createLinkedBranch(input:{issueId:$issue, repositoryId:$repo, oid:$oid, name:$name}){ linkedBranch{ ref{ name } } } }' \
+    -F issue="$ISSUE_ID" -F repo="$REPO_ID" -F oid="$OID" -F name="feat/$N-$SLUG" \
+    --jq '.data.createLinkedBranch.linkedBranch.ref.name'
+done
+git -C <backend|frontend> fetch origin && git -C <backend|frontend> switch feat/$N-$SLUG
+```
+
+`createLinkedBranch` accepts a `repositoryId` in a different repository from the issue's, so a branch in either app repo links back to this issue (`issueId` and `oid` are required, `name` and `repositoryId` optional; check with `gh api graphql -f query='{ __type(name:"CreateLinkedBranchInput"){ inputFields{ name } } }'` if a call is rejected). The branch shows under Development immediately and the pull request links when it opens; `Closes kpnemo/kaizen-tasks-assembly-line#<n>` in the pull request body is still what closes the issue on merge.
+
+If the mutation fails (the branch already exists from an earlier run, or the API refuses), create the branches locally with the `git switch -c` fallback in Step 7; the branch names still go in the comment below, they just do not appear under Development.
+
+Then the first milestone comment, naming the branches that now exist:
+
+```bash
+gh issue comment <n> --repo $REPO --body "Taken into work: implementing through /implement-issue <n>. Branches: kaizen-tasks-api feat/<n>-<slug>, kaizen-tasks-web feat/<n>-<slug>. Pull requests will reference this issue and close it on merge."
+```
+
+## Step 3: Restate the acceptance criteria (request path)
+
 Print a numbered checklist copied from the `### Acceptance criteria` section, one line per bullet, and under each the test that will prove it (file and test name). If any criterion cannot be turned into a test (an adjective with no observable behavior, a number nobody stated), print `Untestable criterion: <text>` and `Question: <one sentence the requester can answer>` and stop. Do not continue with a guess.
 
-## Step 2: Architecture change
+## Step 4: Architecture change (request path)
 
 If the labels include `arch-change`:
 
 1. Decide the affected repo from the request (schema, queue, auth, prompt, proxy: `backend/`; router, client, Caddyfile: `frontend/`).
-2. Create the feature branch there (the branch command from Step 5 or Step 6; that command reuses the branch if it already exists, so Steps 5 and 6 can resume onto it).
+2. Check out the feature branch there (Step 2 already created it; the Step 7 command switches onto it and creates it locally if the linked branch was not made).
 3. Read that repo's `.claude/skills/write-adr/SKILL.md` and write the ADR exactly as it says; commit it on the feature branch.
 4. Stop with the sentence `ADR written, confirm to continue`.
 
-Resume from Step 3 only when told to continue.
+Resume from Step 5 only when told to continue.
 
-## Step 3: Decide the slice
+## Step 5: Brainstorm, spec, plan (request path)
 
-State which repos change and why, in two sentences. State the smallest slice that satisfies every criterion in the checklist. Target: finished in 25 minutes. If both repos change, the API changes first and the web follows after pulling the contract.
+Invoke `superpowers:brainstorming` and follow it, with these constraints:
 
-## Step 4: Time box
+- The person interviewed is the product owner in the room, never an engineer. The subject is the REQUEST, never the implementation.
+- At most four questions, one per turn, with the options drawn from the issue text. Skip every question the issue already answers; if it answers all four, say so and go straight to the approaches.
+- Ask only what changes what gets built: who it is for, where in the UI it appears, what happens at the edge, what stays untouched. Never ask which library, which file, or which pattern.
+- Take its architectural path, so it produces two or three approaches with trade-offs and a recommendation (an answer is required before the spec) and then a written spec.
+- Write the spec to the constant path above. Sections: what, who, behavior, acceptance criteria restated as tests, out of scope, the repos and files touched.
+- The facilitator's yes on the spec is the gate. No plan before it.
 
-Print `Start: $(date +%H:%M)`. Check the clock at each step boundary. At 20 minutes after the start, if Step 7 has not begun, stop and report: what is done, what remains, which branch holds the commits, and the exact next command.
+When the approaches have been answered, comment once:
 
-## Step 5: API, when affected
+```bash
+gh issue comment <n> --repo $REPO --body "Interview done: <k> questions; approach chosen: <one line>."
+```
+
+Then invoke `superpowers:writing-plans`, scaled down for a live 30-minute segment:
+
+- Write the plan to the constant path above.
+- One to four tasks per affected repo, no more. Each task names the repo's own skill (`backend/.claude/skills/add-api-endpoint/SKILL.md` for the API, `frontend/.claude/skills/add-frontend-feature/SKILL.md` for the web) and carries the failing test, the implementation, that repo's checks, and the commit.
+- The spec's acceptance criteria are the global constraints; the smallest slice that satisfies all of them is the whole plan. If both repos change, the API changes first and the web follows after pulling the contract.
+- Show the plan and wait for the facilitator's yes.
+
+On that yes, comment once (the docs pull request URL is added in Step 8, when it exists):
+
+```bash
+gh issue comment <n> --repo $REPO --body "Spec and plan approved: <spec path>, <plan path> on feat/<n>-<slug>."
+```
+
+Then Step 7.
+
+## Step 6: Bug path
+
+Restate, in the reporter's words: expected behavior, actual behavior, and the reproduction steps as a numbered list; under them, the test that will capture the bug. If the steps do not reproduce, say so and ask the reporter one question. Do not guess.
+
+Then invoke `superpowers:systematic-debugging` and follow its phases inside the affected repo: root cause before any fix, pattern analysis, hypothesis tested, then the fix. `superpowers:test-driven-development` still governs it — the failing test that captures the bug is written and shown failing before the fix.
+
+No spec and no plan on this path: the issue is the specification. If the root cause turns out to need a product decision (behavior nobody ever specified), stop, say so, and ask the facilitator whether to file it as a feature request instead.
+
+Then Step 7.
+
+## Step 7: Execute in the affected repos
+
+Request path: execute the plan with `superpowers:executing-plans`, or with `superpowers:subagent-driven-development` when the facilitator asks for subagents; say which one you are using. Bug path: the fix from Step 6 is the execution. Either way each task follows the nested repo's own skill, and every task is test-first.
+
+Branch, API first when both repos change. Step 2 already created these on GitHub, so this checks them out and falls back to a local branch if it did not:
 
 ```bash
 git -C backend fetch origin
 git -C backend switch feat/<n>-<slug> 2>/dev/null || git -C backend switch -c feat/<n>-<slug> origin/develop
-```
-
-Read `backend/.claude/skills/add-api-endpoint/SKILL.md` and follow it exactly: restate the endpoint, write the failing integration test, run it and show the failure, add or extend the schemas and register them, add the service method with the ownership check, the repository query, the route with `validate` and the envelope, run the tests and show them green, regenerate OpenAPI, add the changelog bullet, add an ADR if an architectural file changed, run docs-check.
-
-Then, in `backend/`:
-
-```bash
-cd backend && nvm use
-npm test
-npm run typecheck
-npm run lint
-npm run openapi
-npm run docs:check
-git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
-cd ..
-```
-
-Every command above must exit 0 before the commit.
-
-## Step 6: Web, when affected
-
-```bash
 git -C frontend fetch origin
 git -C frontend switch feat/<n>-<slug> 2>/dev/null || git -C frontend switch -c feat/<n>-<slug> origin/develop
 ```
 
-If the contract changed in Step 5:
+When the contract changed in `backend/`, before any web code:
 
 ```bash
 cd frontend && scripts/pull-openapi.sh --local ../backend/openapi.json && npm run api:types && cd ..
 ```
 
-Read `frontend/.claude/skills/add-frontend-feature/SKILL.md` and follow it exactly: restate the criteria, write the failing component test and show the failure, add or extend the feature folder, add the hook, wire the route and nav, run the tests green, update the README feature list and the changelog, ADR if an architectural file changed, run docs-check.
-
-Then, in `frontend/`:
+Then, in each affected repo, after `nvm use`:
 
 ```bash
-cd frontend && nvm use
 npm test
 npm run typecheck
 npm run lint
-npm run docs:check
+npm run openapi                                   # backend only, when the contract changed
 git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
-cd ..
+npm run docs:check                                # the CI form of the docs gate, never the --hook form
 ```
 
-## Step 7: Push and open the pull requests
+Every command must exit 0. The docs gate runs after the commit because it reads the committed diff; if it fails, fix the docs and amend the commit.
+
+Do not run `superpowers:finishing-a-development-branch`. Its menu offers integration choices; here the skill opens pull requests and stops, and the facilitator merges (`docs/runbook.md`).
+
+Time box: check the clock at each step boundary against the `Start:` printed in Step 1. At 25 minutes, if Step 8 has not begun, stop and report what is done, what remains, which branch holds the commits, and the exact next command.
+
+## Step 8: Push and open the pull requests
 
 For each affected repo (`backend` with `kpnemo/kaizen-tasks-api`, `frontend` with `kpnemo/kaizen-tasks-web`):
 
@@ -145,16 +225,30 @@ Passing run after:
 Docs-check: `<the last line of npm run docs:check>`
 ````
 
-Print the pull request URLs. The API pull request is listed first.
-
-## Step 8: Mark the issue
+Then, on the request path, the spec and the plan in this workspace repo, as a third, docs-only pull request:
 
 ```bash
-gh issue edit <n> --repo $REPO --add-label implementing
-gh issue comment <n> --repo $REPO --body "Pull requests: <api url> <web url>"
+git switch -c feat/<n>-<slug> origin/develop 2>/dev/null || git switch feat/<n>-<slug>
+git add docs/superpowers/specs/<file> docs/superpowers/plans/<file>
+git commit -m "docs: spec and plan for #<n>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+git push -u origin feat/<n>-<slug>
+gh pr create --repo $REPO --base develop --head feat/<n>-<slug> \
+  --title "docs: spec and plan for #<n>" --body "Spec and plan for #<n>. Docs only."
 ```
 
-## Step 9: Stop
+Comment each pull request on the issue as it opens, one line each:
+
+```bash
+gh issue comment <n> --repo $REPO --body "Pull request opened: <url>"
+```
+
+Print the pull request URLs. The API pull request is listed first, the docs one last.
+
+## Step 9: Check the issue timeline
+
+Open the issue and read it top to bottom. It must show, in order: the triage comment, `Taken into work` with the branches, `Interview done`, `Spec and plan approved`, one `Pull request opened` per repo, the branches under Development, the label `implementing` and the assignee. Anything missing gets its comment now; the room reads the journey here, not in the terminal. `shipped` and the final comment come later, from the runbook's Ship block.
+
+## Step 10: Stop
 
 Print the pull request URLs and the sentence `Ready for review and merge`. Do nothing else. Merging, promotion, and closing the issue are done by the facilitator following `docs/runbook.md`.
 

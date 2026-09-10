@@ -25,6 +25,7 @@ label() { # name color description
 }
 
 label feature-request 1D76DB "A request filed through the feature request form"
+label bug D73A4A "A defect filed through the bug report form; skips the rubric, goes straight to implement-issue"
 
 # One gray-to-green gradient per scale, index 1..5.
 GRADIENT="BFBFBF A9CBA4 8FC48A 5FB35A 2EA043"

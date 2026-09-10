@@ -3,3 +3,6 @@ contact_links:
   - name: Feature request form
     url: https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new?template=feature-request.yml
     about: Every request goes through the form so the triage skill can score it.
+  - name: Bug report form
+    url: https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new?template=bug-report.yml
+    about: Something broken? Bugs skip the rubric and go straight to /implement-issue.
