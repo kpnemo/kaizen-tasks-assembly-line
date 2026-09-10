@@ -14,7 +14,7 @@ Constants:
 
 - `REPO=kpnemo/kaizen-tasks-assembly-line`
 - Nested repos: `backend/` is `kpnemo/kaizen-tasks-api`; `frontend/` is `kpnemo/kaizen-tasks-web`. Base branch `develop` in both.
-- Branch name: `feat/<n>-<slug>` where `<slug>` is the issue title lowercased, non-alphanumerics replaced by `-`, at most 40 characters. The same branch name in every repo, this one included.
+- Branch name: `feat/<n>-<slug>` where `<slug>` is the issue title lowercased, with every **run** of non-alphanumerics collapsed to a single `-`, then truncated to at most 40 characters, then trimmed of any leading or trailing `-`. Collapse the run, never one character at a time: "Add light, dark, and system theme toggle" is `add-light-dark-and-system-theme-toggle`, not `add-light--dark--and-system-theme-toggle`. Check it before you use it: `printf '%s' "<title>" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40 | sed -E 's/-+$//'`. The same branch name in every repo, this one included.
 - Spec: `docs/superpowers/specs/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Plan: `docs/superpowers/plans/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Both in this workspace repo.
 - Working directory: the workspace root. Run every npm command inside the nested repo after `nvm use`.
 
@@ -35,13 +35,13 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 
 The issue is the story the room follows, so every milestone lands on it as one short comment, in this fixed shape and nothing more (no transcripts, no diffs):
 
-| When                                         | Comment                                                                                                                                                                                     |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Step 2, decision time                        | `Taken into work: implementing through /implement-issue <n>. Branches: <affected repo> feat/<n>-<slug>[, <other repo> ...]. Pull requests will reference this issue and close it on merge.` |
-| Step 5, after the interview                  | `Interview done: <k> questions; approach chosen: <one line>.`                                                                                                                               |
-| Step 5, after the spec and plan are approved | `Spec and plan approved: <spec path>, <plan path> on feat/<n>-<slug>.`                                                                                                                      |
-| Step 8, as each pull request opens           | `Pull request opened: <url>` (once per pull request, the docs one included)                                                                                                                 |
-| Runbook Ship, after the promotion            | `Shipped in <promotion pr url>; production serves <version>.` (the facilitator, not this skill)                                                                                             |
+| When                                         | Comment                                                                                                                                                                                                                |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Step 2, decision time                        | `Taken into work: implementing through /implement-issue <n>. Branches: <affected repo> feat/<n>-<slug>[, <other repo> ...]. Pull requests will reference this issue; it closes when the change is live in production.` |
+| Step 5, after the interview                  | `Interview done: <k> questions; approach chosen: <one line>.`                                                                                                                                                          |
+| Step 5, after the spec and plan are approved | `Spec and plan approved: <spec path>, <plan path> on feat/<n>-<slug>.`                                                                                                                                                 |
+| Step 8, as each pull request opens           | `Pull request opened: <url>` (once per pull request, the docs one included)                                                                                                                                            |
+| Runbook Ship, after the production read-back | `Shipped in api <version> (<sha>) and web <version> (<sha>): <production url>`, posted by the facilitator's `gh issue close --comment`, not by this skill                                                              |
 
 These are new comments. Never edit or reuse the triage comment, which is upserted by its marker `<!-- kaizen-triage -->`.
 
@@ -65,7 +65,7 @@ Before the interview, before any code:
 gh issue edit <n> --repo $REPO --add-label implementing --add-assignee @me
 ```
 
-The Triage board reads `implementing` from this label, so the room sees the status move before the work starts. Never set `shipped`: the runbook's Ship block does that after the merge.
+The Triage board reads `implementing` from this label, so the room sees the status move before the work starts. Never set or remove `shipped`: `.github/workflows/issue-lifecycle.yml` swaps the two labels when the facilitator closes the issue at ship time, and swaps them back on a reopen.
 
 Then create the working branch in each repo the request touches, **through GitHub**, so it shows under **Development** on the issue at once. Guess the repos from the request now (schema, queue, auth, prompt, proxy: `kaizen-tasks-api`; router, client, Caddyfile: `kaizen-tasks-web`); if the spec later pulls in the other repo, run the same block for it then. Resolve every id at run time, never hardcode one:
 
@@ -81,14 +81,14 @@ done
 git -C <backend|frontend> fetch origin && git -C <backend|frontend> switch feat/$N-$SLUG
 ```
 
-`createLinkedBranch` accepts a `repositoryId` in a different repository from the issue's, so a branch in either app repo links back to this issue (`issueId` and `oid` are required, `name` and `repositoryId` optional; check with `gh api graphql -f query='{ __type(name:"CreateLinkedBranchInput"){ inputFields{ name } } }'` if a call is rejected). The branch shows under Development immediately and the pull request links when it opens; `Closes kpnemo/kaizen-tasks-assembly-line#<n>` in the pull request body is still what closes the issue on merge.
+`createLinkedBranch` accepts a `repositoryId` in a different repository from the issue's, so a branch in either app repo links back to this issue (`issueId` and `oid` are required, `name` and `repositoryId` optional; check with `gh api graphql -f query='{ __type(name:"CreateLinkedBranchInput"){ inputFields{ name } } }'` if a call is rejected). The branch shows under Development immediately and the pull request links when it opens through the `Part of kpnemo/kaizen-tasks-assembly-line#<n>` line in its body; nothing in a pull request ever closes the issue (see the note at the end).
 
 If the mutation fails (the branch already exists from an earlier run, or the API refuses), create the branches locally with the `git switch -c` fallback in Step 7; the branch names still go in the comment below, they just do not appear under Development.
 
 Then the first milestone comment, naming the branches that now exist:
 
 ```bash
-gh issue comment <n> --repo $REPO --body "Taken into work: implementing through /implement-issue <n>. Branches: kaizen-tasks-api feat/<n>-<slug>. Pull requests will reference this issue and close it on merge."
+gh issue comment <n> --repo $REPO --body "Taken into work: implementing through /implement-issue <n>. Branches: kaizen-tasks-api feat/<n>-<slug>. Pull requests will reference this issue; it closes when the change is live in production."
 ```
 
 Name only the repositories you actually branched: one for one repo, both when the request touches both. If a later step pulls in the other repo, branch it then and say so in that step's comment.
@@ -117,7 +117,7 @@ If the labels include `arch-change`:
 3. Read that repo's `.claude/skills/write-adr/SKILL.md` and write the ADR exactly as it says; commit it on the feature branch.
 4. Stop with the sentence `ADR written, confirm to continue`.
 
-Resume from Step 5 only when told to continue.
+Resume from Step 5 only when told to continue. This is the **only** ADR that stops for a human; the ones the nested repos' own skills ask for during Step 7 are records, not gates (Step 7, "One gate, one confirmation").
 
 ## Step 5: Brainstorm, spec, plan (request path)
 
@@ -149,7 +149,7 @@ Then invoke `superpowers:writing-plans`, scaled down for a live 30-minute segmen
 
 - Write the plan to the constant path above.
 - One to four tasks per affected repo, no more. Each task names the repo's own skill (`backend/.claude/skills/add-api-endpoint/SKILL.md` for the API, `frontend/.claude/skills/add-frontend-feature/SKILL.md` for the web) and carries the failing test, the implementation, that repo's checks, and the commit.
-- The spec's acceptance criteria are the global constraints; the smallest slice that satisfies all of them is the whole plan. If both repos change, the API changes first and the web follows after pulling the contract.
+- The spec's acceptance criteria are the global constraints; the smallest slice that satisfies all of them is the whole plan. If both repos change, the API changes first and the web follows after pulling the contract. When the contract itself changes, the plan carries the ripple as named tasks, not as an afterthought (Step 7, "The contract ripple"): the API's `docs/API.md` and README route table, the web's pull and regenerated types, the web's ADR, and the auth-store literal if the user shape moved.
 - Show the plan and wait for the facilitator's yes.
 
 On that yes, comment once (the docs pull request URL is added in Step 8, when it exists):
@@ -190,11 +190,19 @@ git -C frontend fetch origin
 git -C frontend switch feat/<n>-<slug> 2>/dev/null || git -C frontend switch -c feat/<n>-<slug> origin/develop
 ```
 
-When the contract changed in `backend/`, before any web code:
+### The contract ripple
+
+A change to the API contract is never one file. When `backend/` adds or changes a route, a request body or a response shape, walk the whole ripple before the web half is touched — `backend/.claude/skills/add-api-endpoint/SKILL.md` is the authority, this is the checklist:
+
+1. In `backend/`: `npm run openapi` regenerates `openapi.json` **and** `docs/API.md`, the endpoint inventory — commit both. Add the route to the `## Routes` table in `backend/README.md` by hand; the generator does not touch it.
+2. In `frontend/`, before any web code:
 
 ```bash
 cd frontend && scripts/pull-openapi.sh --local ../backend/openapi.json && npm run api:types && cd ..
 ```
+
+3. Still in `frontend/`: write the ADR. `src/api/**` is the first glob in that repo's `docs/architectural-files.txt`, and the pull rewrites `src/api/openapi.json` and `src/api/types.ts`, so **every** contract pull needs an ADR under `docs/adr/`. That is by design, not a snag: the ADR records which contract the web half pulled and what it had to change to match. Follow `frontend/.claude/skills/write-adr/SKILL.md`; one short ADR, no confirmation asked (see the gate note below).
+4. If the change alters the user shape, `frontend/src/api/auth-store.ts` and its `auth-store.test.ts` literal follow it in the same commit. Say so in the API commit message so the web half knows to look.
 
 Then, in each affected repo, after `nvm use`:
 
@@ -204,14 +212,25 @@ npm run typecheck
 npm run lint
 npm run openapi                                   # backend only, when the contract changed
 git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
-npm run docs:check                                # the CI form of the docs gate, never the --hook form
+BASE_SHA=$(git merge-base origin/develop HEAD) bash scripts/docs-check.sh --ci    # last line must be `docs-check: OK`
 ```
 
-Every command must exit 0. The docs gate runs after the commit because it reads the committed diff; if it fails, fix the docs and amend the commit.
+Every command must exit 0, and the docs gate must print `docs-check: OK` on its last line.
+
+Two traps in that last command, both of which cost time in the 2026-09-10 dry run:
+
+- **Never `npm run docs:check` here.** In both app repos that script is `bash scripts/docs-check.sh --hook`, the Stop-hook mode: it expects the hook's JSON on stdin, counts consecutive blocks, and after three of them writes `.claude/DOCS-CHECK-FAILED` and stops blocking. `--ci` is the mode CI runs, and the only one that answers "would this pull request pass".
+- **Always pass `BASE_SHA`.** `--ci` diffs `$BASE_SHA...HEAD`. The API's script refuses to run without it; the web's silently falls back to `HEAD~1`, which sees only the last commit of a multi-commit branch and waves through docs drift from every commit before it. `git merge-base origin/develop HEAD` is the same base the pull request will have.
+
+The gate runs after the commit because it reads the committed diff; if it fails, fix the docs and amend the commit.
 
 Do not run `superpowers:using-git-worktrees`. The isolated workspaces are the `feat/<n>-<slug>` branches created at Step 2 inside `backend/` and `frontend/` (and at Step 5 here, for the docs); a worktree of this repository would hold neither app repo, because both are git-ignored here. When `executing-plans` or `subagent-driven-development` asks for a worktree, say the branch is it and carry on.
 
 Do not run `superpowers:finishing-a-development-branch` either. Its menu offers integration choices; here the skill opens pull requests and stops, and the facilitator merges (`docs/runbook.md`).
+
+### One gate, one confirmation
+
+`arch-change` is the only architecture question that stops for a human, and it stops exactly once, at Step 4, with `ADR written, confirm to continue`. Every other ADR — the contract-pull one above, and any ADR a nested repo's own skill asks for because the change touched that repo's architectural files — is a **record, not a gate**: write it, commit it, carry on, and never ask the facilitator to confirm it. `.claude/skills/triage-requests/SKILL.md`, which sets the label, says the same thing in the same words.
 
 Time box: check the clock at each step boundary against the `Start:` printed in Step 1. At 25 minutes, if Step 8 has not begun, stop and report what is done, what remains, which branch holds the commits, and the exact next command.
 
@@ -232,7 +251,7 @@ Pull request body:
 ````markdown
 ## Issue
 
-Closes kpnemo/kaizen-tasks-assembly-line#<n>
+Part of kpnemo/kaizen-tasks-assembly-line#<n>
 
 ## Acceptance criteria
 
@@ -253,8 +272,10 @@ Passing run after:
 <the relevant lines of the passing test output>
 ```
 
-Docs-check: `<the last line of npm run docs:check>`
+Docs-check: `docs-check: OK`
 ````
+
+**No closing keyword, in any pull request, ever.** `develop` is the app repos' default branch, so GitHub acts on `Closes`/`Fixes` the moment a pull request merges there — that is staging, not production, and the issue must close only when the request is live in production. `Part of` links the pull request under the issue's **Development** panel and its timeline exactly the same way; the facilitator closes the issue by hand after the production read-back (`docs/runbook.md`, Ship), and `.github/workflows/issue-lifecycle.yml` moves the labels.
 
 Then, on the request path, the spec and the plan in this workspace repo, as a third, docs-only pull request:
 
@@ -284,7 +305,7 @@ Open the issue and read it top to bottom against the path you took.
 - Bug path: none of those three, by design. There is no spec, no plan and no docs pull request to link, and a bug carries no triage comment because bugs are never scored.
 - Linked branches under Development only when Step 2's mutation succeeded. The documented fallback (local branches, named in the take-into-work comment) is a pass, not a gap.
 
-Post any comment genuinely missing for the path you took, and invent none. The room reads the journey here, not in the terminal. `shipped` and the final comment come later, from the runbook's Ship block.
+Post any comment genuinely missing for the path you took, and invent none. The room reads the journey here, not in the terminal. The issue stays **open** and labelled `implementing`: the close, the shipped comment and the `shipped` label all come later, at ship time.
 
 ## Step 10: Stop
 
@@ -292,4 +313,6 @@ Print the pull request URLs and the sentence `Ready for review and merge`. Do no
 
 ## Note on issue closing across repos
 
-`Closes kpnemo/kaizen-tasks-assembly-line#<n>` closes the issue when the pull request merges because the author has write access to the assembly-line repo (verification item L1 in the assembly-line spec). The runbook checks `gh issue view <n> --repo $REPO --json state` after the merge; if the issue is still open, the facilitator runs `gh issue close <n> --repo $REPO --comment "Shipped in <pr url>"`.
+The issue closes when the request is live in production, and never before. No pull request this skill opens carries `Closes`, `Fixes` or `Resolves`: `develop` is the default branch in both app repos, so a keyword would close the issue on the first merge to staging — which is exactly what happened to #11 in the 2026-09-10 dry run, half a feature and two promotions early. A keyword close also leaves the labels behind, because GitHub does not touch them.
+
+So: every pull request body says `Part of kpnemo/kaizen-tasks-assembly-line#<n>`, which links it under **Development** and in the timeline just as well; the facilitator closes the issue after the production read-back with one command that also comments (`docs/runbook.md`, Ship); and `.github/workflows/issue-lifecycle.yml` swaps `implementing` for `shipped` on that close, and swaps them back if the issue is ever reopened.

@@ -116,7 +116,9 @@ gh issue edit <n> --repo $REPO --add-label "clarity:<c>,complexity:<x>,risk:<r>,
 
 3. Architecture flag: when `archChange` is true, `gh issue edit <n> --repo $REPO --add-label arch-change`. When false and the fetched labels include `arch-change`, `gh issue edit <n> --repo $REPO --remove-label arch-change`.
 
-Never touch `implementing` or `shipped`: `/implement-issue` sets `implementing` when it takes an issue into work, and the runbook's Ship block sets `shipped` after the merge.
+`arch-change` is what makes `/implement-issue` stop once for a human: it writes an ADR and waits for `confirm to continue` before any code (that skill's Step 4). It is the only architecture gate. ADRs that a nested repo's own skill writes later, because the change touched that repo's architectural files — the web repo counts `src/api/**`, so every contract pull writes one — are records, not gates, and nobody is asked to confirm them. Set the label from the rubric's architecture test only; never from a hunch about how much documentation the change will need.
+
+Never touch `implementing` or `shipped`: `/implement-issue` sets `implementing` when it takes an issue into work, and `.github/workflows/issue-lifecycle.yml` swaps it for `shipped` when the facilitator closes the issue at ship time (and swaps back on a reopen).
 
 4. Write the comment to a temp file:
 
@@ -169,7 +171,7 @@ If empty, run `scripts/setup-labels.sh` (it creates and pins the board) and read
 Last run: <ISO timestamp>. Report: `triage/<YYYY-MM-DD>.md`. Rubric version <n>.
 ```
 
-The Status column is read from the issue's labels, not decided here: `shipped` when the issue carries `shipped`, else `implementing` when it carries `implementing` (`/implement-issue` adds that label the moment it takes the issue into work, before any interview or code), else `triaged`.
+The Status column is read from the issue's labels, not decided here: `shipped` when the issue carries `shipped`, else `implementing` when it carries `implementing` (`/implement-issue` adds that label the moment it takes the issue into work, before any interview or code), else `triaged`. The labels are trustworthy for this because `.github/workflows/issue-lifecycle.yml` keeps them in step with the issue's own state.
 
 Then `gh issue edit $board --repo $REPO --body-file <tempfile>`.
 
