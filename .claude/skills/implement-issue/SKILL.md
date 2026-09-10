@@ -220,9 +220,20 @@ gh issue comment <n> --repo $REPO --body "Context gathered: touches <areas>; tod
 
 There is no briefing on the bug path: Step 6 restates the report and goes to systematic debugging.
 
-## Step 3: Restate the acceptance criteria (request path)
+## Step 3: Restate the effective acceptance criteria (request path)
 
-Print a numbered checklist copied from the `### Acceptance criteria` section, one line per bullet, and under each the test that will prove it (file and test name).
+Print a numbered checklist of the **effective** acceptance criteria — one line per criterion, and under each the test that will prove it (file and test name).
+
+Effective, not copied. Step 2b read every comment on the issue and established that a later comment from the requester or the facilitator is a decision that overrides the body. The acceptance criteria are no exception: a criterion the requester changed in a reply is the changed one, and testing the form's original wording would ship the wrong thing. So start from the `### Acceptance criteria` section, then apply every later decision in the thread — replaced, added or struck — and **cite the comment that made each change** on the line it changed:
+
+```
+1. <criterion, as it now stands> — <test file>::<test name>
+   (replaced by @<author>, <date>: "<the words that changed it>")
+2. <criterion nothing overrode> — <test file>::<test name>
+3. <criterion> — struck by @<author>, <date>: "<the words that struck it>"
+```
+
+A criterion nothing overrode carries no citation. If the thread contradicts itself, the latest comment wins and that line says so. If a later comment adds a criterion the form never had, it joins the list with its citation like any other. This checklist, not the form's text, is what the spec restates as tests and what the pull request checks off.
 
 A criterion that cannot be turned into a test — an adjective with no observable behavior, a number nobody stated — is **not a stop**. Print `Untestable criterion: <text>` and add it to the briefing's **Open questions**, ahead of the ones Step 2b found, with a testable rewording you would accept as its recommended answer:
 
@@ -302,7 +313,7 @@ Then invoke `superpowers:brainstorming` and **start it at the approaches**: stat
 - The person interviewed is the product owner in the room, never an engineer. The subject is the REQUEST, never the implementation.
 - Two or three approaches with trade-offs and a recommendation, presented with the spec as **one** section taking **one** yes. Never ask for an approval per section.
 - Do not offer the visual companion, and do not run `superpowers:using-git-worktrees`.
-- Write the spec to the constant path above. Sections: what, who, behavior, acceptance criteria restated as tests, out of scope, the repos and files touched.
+- Write the spec to the constant path above. Sections: what, who, behavior, acceptance criteria restated as tests, out of scope, the repos and files touched. The criteria it restates are Step 3's **effective** ones, citations included — never a fresh copy of the form's text.
 - The line under the spec's title is `Context: docs/superpowers/briefs/<YYYY-MM-DD>-issue-<n>-<slug>.md` — the briefing is where everything the spec asserts about today's behavior comes from.
 - When the briefing says `UI: visible`, the spec carries a `## Looks` section: the control type, its icons, where it sits, and how it reads in both themes. That section is what the screenshots are checked against before the web pull request opens.
 - The facilitator's yes on the spec is the gate. No plan before it.
@@ -431,7 +442,7 @@ Part of kpnemo/kaizen-tasks-assembly-line#<n>
 
 ## Acceptance criteria
 
-- [x] <criterion 1>: <test file and name>
+- [x] <criterion 1, as Step 3 made it effective>: <test file and name>
 - [x] <criterion 2>: ...
 
 ## Test evidence
