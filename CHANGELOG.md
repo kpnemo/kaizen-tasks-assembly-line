@@ -14,6 +14,10 @@ All notable changes to this repository are documented here. The format follows
 
 ### Changed
 
+- `docs/runbook.md`: Part 1's intake segment (8 to 23, was 8 to 20) adds the assistant interview path on "Request a feature" alongside the plain form, with a gate line in section 3, a failure-page row for a slow or erroring assistant, and a pre-session check to run one interview on production the day before; the buffer (section 2) shrinks from 10 to 7 minutes and the cutoff rule moves to minute 68 to keep Part 1 at 75 minutes.
+- `docs/PRD.md`: R23 documents the "Request a feature" interview extending R18: what the PM sees, the readiness stop rule, the prefilled form and issue section, and the escape hatch to the plain form.
+- `README.md` and `CLAUDE.md`: the readiness rubric now has three consumers (this repo, product-skills, and the API's interview agent); each vendoring repo checks drift with its own `scripts/sync-rubric.sh --check`.
+- `docs/cicd-log.md`: recorded the second promotion (release 1.0.0 on both app repos, harness `main` with the footer-version smoke step, production read-backs, production smoke).
 - `smoke/README.md` and the runbook: local smoke runs behind a TLS-inspecting proxy need `NODE_OPTIONS=--use-system-ca` for the footer version step (Playwright's Node request client does not read the system trust store).
 - `docs/cicd-log.md`: recorded the first `develop`→`main` promotion of both app repos with the production read-backs (Task 12, L3-M2) and the demo-user resets on staging and production plus the production AI probe (Task 13).
 - `docs/cicd-log.md`: recorded the IaC apply for `api` and `web` in staging and production (Task 8), the wait-for-CI observation of a gated staging deploy (Task 9, V4), the public domain, proxy and health verification (Task 10, L3-M1), and branch protection on `develop` (`ci`) and `main` (`ci`+`promote`) in both app repos (Task 11).
