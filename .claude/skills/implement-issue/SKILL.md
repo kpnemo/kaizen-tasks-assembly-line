@@ -231,7 +231,7 @@ Untestable criterion: "the list should feel fast"
 Suggested rewording: the list renders the first 50 tasks within 200 ms of the response arriving, asserted in the component test.
 ```
 
-These are blockers, so they lead the Step 5 round. They do not enlarge it: four questions in total at most, blockers first. If an answer still leaves a criterion untestable, stop there with that blocker — say which criterion and what is still missing. That is the one place a criterion stops this path.
+These are blockers, and Step 5 places them in the round after the design question's reserved slot and before the briefing's open questions ("Building the round"). They never enlarge it past four and they are never dropped to make room: when the slots are short, all of them are combined into one question. Add each to the briefing's **Open questions** marked `blocker:` so the round-builder can recognise it and count it once. If an answer still leaves a criterion untestable, stop there with that blocker — say which criterion and what is still missing. That is the one place a criterion stops this path.
 
 Step 2b's `Context gathered` comment was posted before this pass, so its count does not include these. Do not re-post it; the count that has to be right is the round's own, in `Interview done`.
 
@@ -262,13 +262,20 @@ Invoke `mattpocock-skills:grilling` and give it this override block, verbatim, a
 > - **At most four numbered questions**, in the skill's own format (`❓ **Q1** — **<title>**: …` then `➡️ <recommended answer>`), every one of them carrying its recommended answer.
 > - **The round ends** the moment the product owner answers, or says `take your recommendations`, or says `use the issue text` — whichever comes first. Then stop asking and continue with what you have.
 
-What goes in the round, in this order, four in total at most:
+#### Building the round
 
-1. Step 3's untestable criteria, each with its testable rewording as the recommendation. Blockers first.
-2. The briefing's open questions, three at most.
-3. The design question, when the briefing says `UI: visible`. That one is asked through AskUserQuestion rather than as a numbered line (below), and it counts against the four.
+Four questions is a hard ceiling, and the design question must never be the one that falls off the end. So the round is **one deduplicated list cut to four**, not three sources added together:
 
-Two rules on shape. When two open questions depend on each other, never ask them separately: present complete alternatives as the options — bundles, each one answering both, so no answer can strand the other. And when the briefing leaves nothing open and the classification is `UI: none`, there is no round at all: print `No open questions: the issue and the product maps answer everything, and nothing visible changes.` and go straight to the approaches.
+1. **Collect** into one list: the design question (only when `UI: visible`), every untestable criterion Step 3 found, and the briefing's open questions.
+2. **Deduplicate.** A blocker that Step 3 appended to the briefing's **Open questions** is the same item read twice — keep it once, as the blocker. So is a briefing question that only asks what a blocker's proposed rewording already settles. Count each decision once, never twice.
+3. **Allocate the four slots in this order**, and stop when they are full:
+   - **The design question first**, when `UI: visible`. Its slot is reserved before anything else is placed, so it can never be squeezed out by blockers or by the briefing.
+   - **Then the blockers**, in the order Step 3 found them.
+   - **Then the briefing's open questions**, the ones that most change what gets built first.
+4. **Never drop a blocker to make room.** If the blockers do not fit in the slots that are left, combine their rewordings into **one** question that lists each criterion with the rewording proposed for it and takes a single answer. One question, several criteria, one answer.
+5. Anything that still does not fit is **not asked**. Record it in the briefing as a decision you took, with the answer you took, so the room can see it was decided rather than forgotten.
+
+Two rules on shape. When two open questions depend on each other, never ask them separately: present complete alternatives as the options — bundles, each one answering both, so no answer can strand the other (a bundle is one slot, not two). And when the list is empty after step 2 — the briefing left nothing open and the classification is `UI: none` — there is no round at all: print `No open questions: the issue and the product maps answer everything, and nothing visible changes.` and go straight to the approaches.
 
 `take your recommendations` answers the whole round at once; `use the issue text` ends it with what the issue already says. Both are in the runbook's failure page, and neither is permission to merge anything: this skill still never merges.
 
