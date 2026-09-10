@@ -1,12 +1,14 @@
 ---
 name: implement-issue
-description: Route one issue through the superpowers skills — brainstorm, spec, plan and TDD for a request, systematic debugging for a bug — open pull requests, never merge
+description: Route one issue through the superpowers skills — brief, one grilling round, spec, plan and TDD for a request, systematic debugging for a bug — open pull requests, never merge
 argument-hint: "<issue number>"
 ---
 
 # implement-issue
 
-Take one issue from `kpnemo/kaizen-tasks-assembly-line`, mark it in progress, and route it through the superpowers skills installed in this Claude Code: a feature request goes interview, approaches, spec, plan, then test-first execution; a bug goes to systematic debugging. Both paths end the same way: the nested repos' own skills, their full checks, one pull request per affected repo, and stop.
+Take one issue from `kpnemo/kaizen-tasks-assembly-line`, mark it in progress, and route it through the superpowers skills installed in this Claude Code: a feature request is briefed against the product maps and the code first, then goes one bounded round of questions, approaches, spec, plan, and test-first execution; a bug goes to systematic debugging. Both paths end the same way: the nested repos' own skills, their full checks, one pull request per affected repo, and stop.
+
+The briefing is what makes the round short. The agent reads the two product maps, the whole issue thread and any mockup, and explores the code once, before it asks anything — so the questions that survive are only the ones the issue genuinely does not answer.
 
 This skill routes. It does not restate what the superpowers skills say: invoke each by name with the Skill tool and follow it as written.
 
@@ -15,15 +17,17 @@ Constants:
 - `REPO=kpnemo/kaizen-tasks-assembly-line`
 - Nested repos: `backend/` is `kpnemo/kaizen-tasks-api`; `frontend/` is `kpnemo/kaizen-tasks-web`. Base branch `develop` in both.
 - Branch name: `feat/<n>-<slug>` where `<slug>` is the issue title lowercased, with every **run** of non-alphanumerics collapsed to a single `-`, then truncated to at most 40 characters, then trimmed of any leading or trailing `-`. Collapse the run, never one character at a time: "Add light, dark, and system theme toggle" is `add-light-dark-and-system-theme-toggle`, not `add-light--dark--and-system-theme-toggle`. Check it before you use it: `printf '%s' "<title>" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40 | sed -E 's/-+$//'`. The same branch name in every repo, this one included.
-- Spec: `docs/superpowers/specs/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Plan: `docs/superpowers/plans/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Both in this workspace repo.
+- Briefing: `docs/superpowers/briefs/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Spec: `docs/superpowers/specs/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Plan: `docs/superpowers/plans/<YYYY-MM-DD>-issue-<n>-<slug>.md`. All three in this workspace repo, all three on `feat/<n>-<slug>`.
+- Briefing scratch: `.superpowers/briefs/<n>/`, git-ignored, for downloaded attachments only. Nothing in it is ever committed.
+- Read at Step 2b: `backend/docs/product-map.md`, `frontend/docs/product-map.md`, `frontend/docs/ui-conventions.md`. Each app repo regenerates its map with `npm run product-map`; a stale map fails that repo's docs gate.
 - Working directory: the workspace root. Run every npm command inside the nested repo after `nvm use`.
 
 ## Hard rules
 
-- Never run `gh pr merge`. Never push to `develop` or `main`. Never edit files outside `backend/`, `frontend/`, and this repo's `docs/superpowers/`.
-- In this workspace repo commit only the spec and the plan, on `feat/<n>-<slug>`, and open them as a docs-only pull request.
-- Never guess at an untestable criterion; stop and ask.
-- One question at a time, through the AskUserQuestion tool when it is available, a numbered list otherwise.
+- Never run `gh pr merge`. Never push to `develop` or `main`. Never edit files outside `backend/`, `frontend/`, this repo's `docs/superpowers/` (its `briefs/`, `specs/` and `plans/`), and the git-ignored scratch `.superpowers/briefs/<n>/`.
+- In this workspace repo commit only the briefing, the spec and the plan, on `feat/<n>-<slug>`, and open all three as one docs-only pull request. `.superpowers/` is scratch and stays out of git: if `git check-ignore -q .superpowers/` does not succeed, add the line `.superpowers/` to `.gitignore` before writing anything there (the trailing slash matters — the pattern is directory-only).
+- Never guess at an untestable criterion. It is no longer a stop: it leads the Step 5 round as a question carrying a recommended testable rewording (Step 3). If the answer still leaves it untestable, stop there with that blocker.
+- The Step 5 round is one message with at most four numbered questions, each carrying its recommended answer; the design question inside it goes through AskUserQuestion with the recommended option first. Every other question, on either path, is asked one at a time, through the AskUserQuestion tool when it is available and a numbered list otherwise.
 - Show the failing test output in the transcript before writing implementation code, and the passing output after. The transcript is what the room sees.
 - Every commit ends with the trailer line:
 
@@ -38,7 +42,8 @@ The issue is the story the room follows, so every milestone lands on it as one s
 | When                                         | Comment                                                                                                                                                                                                                |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Step 2, decision time                        | `Taken into work: implementing through /implement-issue <n>. Branches: <affected repo> feat/<n>-<slug>[, <other repo> ...]. Pull requests will reference this issue; it closes when the change is live in production.` |
-| Step 5, after the interview                  | `Interview done: <k> questions; approach chosen: <one line>.`                                                                                                                                                          |
+| Step 2b, after the briefing                  | `Context gathered: touches <areas>; today <one line>; open questions: <k>.`                                                                                                                                            |
+| Step 5, after the round                      | `Interview done: <k> questions, <r> recommendations taken; approach chosen: <one line>.`                                                                                                                               |
 | Step 5, after the spec and plan are approved | `Spec and plan approved: <spec path>, <plan path> on feat/<n>-<slug>.`                                                                                                                                                 |
 | Step 8, as each pull request opens           | `Pull request opened: <url>` (once per pull request, the docs one included)                                                                                                                                            |
 | Runbook Ship, after the production read-back | `Shipped in api <version> (<sha>) and web <version> (<sha>): <production url>`, posted by the facilitator's `gh issue close --comment`, not by this skill                                                              |
@@ -53,7 +58,7 @@ gh issue view <n> --repo $REPO --json title,body,labels
 
 Print `Start: $(date +%H:%M)`, then the path:
 
-- Labels include `feature-request` (the request form's five sections: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role) → `Path: request`. Steps 2, 3, 4 (only when the labels also include `arch-change`), 5, 7, 8, 9, 10.
+- Labels include `feature-request` (the request form's five sections: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role) → `Path: request`. Steps 2, 2b, 3, 4 (only when the labels also include `arch-change`), 5, 7, 8, 9, 10.
 - Labels include `bug` (the bug form's five sections: What happened, What you expected, Steps to reproduce, Where, Your role) → `Path: bug`. Steps 2, 6, 7, 8, 9, 10. An issue carrying both labels is a bug.
 - Neither label, or both: print the sections the body actually has and ask the facilitator which path, then follow the answer.
 
@@ -76,6 +81,15 @@ The Triage board reads `implementing` from this label, so the room sees the stat
 | `shipped`      | live in production                                | the facilitator's Ship step, immediately before it closes the issue |
 
 Never set or remove `staging` or `shipped`. Both arrive after this skill has stopped. `.github/workflows/issue-lifecycle.yml` retires `implementing` and `staging` on that close — and puts the issue back if something closes it while it is still in work.
+
+Then create the harness branch here, in this workspace repo, before anything writes a file:
+
+```bash
+git fetch origin develop
+git switch -c feat/<n>-<slug> origin/develop 2>/dev/null || git switch feat/<n>-<slug>
+```
+
+This branch used to be created at Step 5. It is created here because Step 2b writes the briefing, and the briefing, the spec and the plan all belong on the branch Step 8 pushes.
 
 Then create the working branch in each repo the request touches, **through GitHub**, so it shows under **Development** on the issue at once. Guess the repos from the request now (schema, queue, auth, prompt, proxy: `kaizen-tasks-api`; router, client, Caddyfile: `kaizen-tasks-web`); if the spec later pulls in the other repo, run the same block for it then. Resolve every id at run time, never hardcode one:
 
@@ -114,9 +128,112 @@ gh issue edit "$board" --repo $REPO --body-file /tmp/board.md
 
 One cell, nothing else: no re-ranking, no new rows, no touch to the `Last run` line. If the issue has no row (it was filed after the last triage run), leave the board alone and say so; the next `/triage-requests` picks it up.
 
+## Step 2b: Brief (request path)
+
+Read the product and the code before asking anything, so every question that survives is one the issue really does not answer. The whole step has an aggregate deadline of **three minutes** from the `Start:` clock printed in Step 1; when that runs out, write the briefing with what you have and say in it what is missing.
+
+Read, in this order:
+
+1. The issue body, its "Looks or mockup" section included.
+2. **Every** comment on the issue, not only the triage one:
+
+```bash
+gh issue view <n> --repo $REPO --json comments \
+  --jq '.comments[] | "--- " + .author.login + " " + .createdAt + "\n" + .body'
+```
+
+The triage comment (marker `<!-- kaizen-triage -->`) carries the scores and the clarity questions. Every **later** comment from the requester or the facilitator is a decision: it overrides anything earlier that contradicts it, the issue body included. No triage comment is not a blocker — record `triage: not run` and carry on.
+
+3. `backend/docs/product-map.md` and `frontend/docs/product-map.md`: what the product does today, its endpoints, its tables, its routes and screens. Each app repo keeps its map fresh with `npm run product-map`, and its docs gate fails if it is stale, so the maps can be trusted as of this checkout.
+4. `frontend/docs/ui-conventions.md`: the vocabulary the design question is drawn from.
+
+### Attachments
+
+Download every image the issue body references — `![…](https://github.com/user-attachments/assets/…)` and `<img src="…">` alike — **at most four**, into the git-ignored scratch:
+
+```bash
+mkdir -p .superpowers/briefs/<n>
+curl -fsSL --max-time 10 --max-filesize 5000000 -o .superpowers/briefs/<n>/<name> "<url>"
+```
+
+Open each downloaded file with the Read tool and write down what it shows: the screen, the control, where it sits, what is labelled. A download that fails is one line in the briefing (`attachment <url>: <reason>`) and nothing more — never retry it, never block on it.
+
+### One exploration
+
+Dispatch **one** read-only Explore subagent, breadth `medium`. Its prompt carries the request text and, from the two maps, the route list, the endpoint table and the table names — never the maps whole. Ask it for exactly four things:
+
+1. the screens, components, endpoints and tables the request touches;
+2. the current behavior in those places;
+3. anything that already exists which the request may be asking for;
+4. anything standing in the way.
+
+Say in the prompt: **answer in under 25 lines, and you have about 60 seconds**. One subagent, never two, and no follow-up dispatch. If it has not reported after 90 seconds, carry on with the maps alone and list what stayed unknown under **Unknowns** in the briefing. Do not wait for it a second time.
+
+### Classify
+
+From all of that, decide and write down:
+
+- `UI: visible` — the request adds or changes something a user sees — or `UI: none`.
+- The repos touched (`kaizen-tasks-api`, `kaizen-tasks-web`, or both), checked against the guess Step 2 branched from. If that guess was wrong, branch the other repo now with Step 2's block and say so in this step's comment.
+
+### Write the briefing
+
+Write `docs/superpowers/briefs/<YYYY-MM-DD>-issue-<n>-<slug>.md`, under two pages, with these headings and nothing else:
+
+```markdown
+# Briefing: #<n> <title>
+
+- Summary: <two or three lines, the request in the requester's own terms>
+- Triage: readiness <score>, clarity <c>, complexity <x>, risk <r> — or `not run`
+- UI: visible | none
+- Repos: <list>
+
+## What exists today
+
+<what the maps and the exploration say is already there, in the places this request touches>
+
+## Touched areas
+
+<screens, components, endpoints, tables, each with its path>
+
+## Mockups seen
+
+<one line per attachment: what it shows — or "none">
+
+## Unknowns
+
+<whatever the exploration did not answer in time — or "none">
+
+## Open questions
+
+1. <question> — suggested answer: <the answer this briefing would give>
+2. ...
+```
+
+**Open questions** are only the ones the briefing genuinely cannot settle. Anything the maps, the comments or the exploration already answer is settled, and a settled thing is never asked. Three at most: if more than three survive, keep the three that change what gets built, and record the rest as decisions you took.
+
+Leave the file uncommitted — Step 8 stages it with the spec and the plan. Then the milestone comment:
+
+```bash
+gh issue comment <n> --repo $REPO --body "Context gathered: touches <areas>; today <one line>; open questions: <k>."
+```
+
+There is no briefing on the bug path: Step 6 restates the report and goes to systematic debugging.
+
 ## Step 3: Restate the acceptance criteria (request path)
 
-Print a numbered checklist copied from the `### Acceptance criteria` section, one line per bullet, and under each the test that will prove it (file and test name). If any criterion cannot be turned into a test (an adjective with no observable behavior, a number nobody stated), print `Untestable criterion: <text>` and `Question: <one sentence the requester can answer>` and stop. Do not continue with a guess.
+Print a numbered checklist copied from the `### Acceptance criteria` section, one line per bullet, and under each the test that will prove it (file and test name).
+
+A criterion that cannot be turned into a test — an adjective with no observable behavior, a number nobody stated — is **not a stop**. Print `Untestable criterion: <text>` and add it to the briefing's **Open questions**, ahead of the ones Step 2b found, with a testable rewording you would accept as its recommended answer:
+
+```
+Untestable criterion: "the list should feel fast"
+Suggested rewording: the list renders the first 50 tasks within 200 ms of the response arriving, asserted in the component test.
+```
+
+These are blockers, so they lead the Step 5 round. They do not enlarge it: four questions in total at most, blockers first. If an answer still leaves a criterion untestable, stop there with that blocker — say which criterion and what is still missing. That is the one place a criterion stops this path.
+
+Step 2b's `Context gathered` comment was posted before this pass, so its count does not include these. Do not re-post it; the count that has to be right is the round's own, in `Interview done`.
 
 ## Step 4: Architecture change (request path)
 
@@ -129,36 +246,75 @@ If the labels include `arch-change`:
 
 Resume from Step 5 only when told to continue. This is the **only** ADR that stops for a human; the ones the nested repos' own skills ask for during Step 7 are records, not gates (Step 7, "One gate, one confirmation").
 
-## Step 5: Brainstorm, spec, plan (request path)
+## Step 5: One round, the design, the spec, the plan (request path)
 
-First, in this workspace repo, so every commit the next two skills make lands on the branch Step 8 pushes:
+The branch here already exists (Step 2) and the briefing is written (Step 2b). What is left is the handful of questions the briefing could not settle, one design decision when the request is visible, and then the approaches, the spec and the plan.
 
-```bash
-git fetch origin develop
-git switch -c feat/<n>-<slug> origin/develop 2>/dev/null || git switch feat/<n>-<slug>
+### The round
+
+Invoke `mattpocock-skills:grilling` and give it this override block, verbatim, as the workshop instructions it runs under. They take precedence over that skill's own text wherever the two differ:
+
+> **Workshop overrides — these win over the grilling skill's own text.**
+>
+> - **Exactly one round.** Ask the frontier once. There is no second round, no follow-up round, and no recomputed frontier. When the round is answered, the interview is over.
+> - **No subagents.** Do not dispatch anything to find facts. The facts are already gathered: they are in `docs/superpowers/briefs/<YYYY-MM-DD>-issue-<n>-<slug>.md`, and the one exploration that produced them has already run (Step 2b).
+> - **No "shared understanding" confirmation.** Do not ask the user to confirm a shared understanding at the end. The gates are the ones named below and nothing else.
+> - **At most four numbered questions**, in the skill's own format (`❓ **Q1** — **<title>**: …` then `➡️ <recommended answer>`), every one of them carrying its recommended answer.
+> - **The round ends** the moment the product owner answers, or says `take your recommendations`, or says `use the issue text` — whichever comes first. Then stop asking and continue with what you have.
+
+What goes in the round, in this order, four in total at most:
+
+1. Step 3's untestable criteria, each with its testable rewording as the recommendation. Blockers first.
+2. The briefing's open questions, three at most.
+3. The design question, when the briefing says `UI: visible`. That one is asked through AskUserQuestion rather than as a numbered line (below), and it counts against the four.
+
+Two rules on shape. When two open questions depend on each other, never ask them separately: present complete alternatives as the options — bundles, each one answering both, so no answer can strand the other. And when the briefing leaves nothing open and the classification is `UI: none`, there is no round at all: print `No open questions: the issue and the product maps answer everything, and nothing visible changes.` and go straight to the approaches.
+
+`take your recommendations` answers the whole round at once; `use the issue text` ends it with what the issue already says. Both are in the runbook's failure page, and neither is permission to merge anything: this skill still never merges.
+
+Gates after the round, and only these: the `arch-change` confirmation at Step 4 when the label is present, one yes on the design (the approaches and the spec together), one yes on the plan.
+
+### The design question
+
+When the briefing says `UI: visible`, exactly one design question, through AskUserQuestion, the **recommended option first**:
+
+- Two or three options, drawn from `frontend/docs/ui-conventions.md` and the header controls the web product map inventories — a group of `Button` variants with `aria-pressed` and a lucide icon each, an entry in the existing dropdown menu, a `NativeSelect` only past eight options.
+- Every option's description carries a **small text mockup** of what it looks like, so the room sees the choice instead of reading about it:
+
+```
+[ ☀ Light | ☾ Dark | ▣ System ]     in the header, left of the account menu
 ```
 
-Then invoke `superpowers:brainstorming` and follow it, with these constraints:
+- The options are what the user sees, never how it is built. Never ask which component file, which library, which prop.
+- **Confirmation, not a menu, when the request already decided.** If the issue carries a mockup (Step 2b downloaded it and looked at it) or names a look in its "Looks or mockup" section, do not offer alternatives: show that design back as the first option, recommended, with its text mockup, and make the second `Something else — say what`. A request that names a look wins, within `ui-conventions.md`'s accessibility rules.
+
+### The approaches and the spec
+
+Then invoke `superpowers:brainstorming` and **start it at the approaches**: state that the questions are done, that the round has been held and must not be repeated, and hand it the briefing together with the answers. Its constraints here:
 
 - The person interviewed is the product owner in the room, never an engineer. The subject is the REQUEST, never the implementation.
-- Zero to four questions, one per turn, with the options drawn from the issue text. Skip every question the issue already answers; if it answers all four, say so and go straight to the approaches with no questions at all.
-- Ask only what changes what gets built: who it is for, where in the UI it appears, what happens at the edge, what stays untouched. Never ask which library, which file, or which pattern.
-- Take its architectural path, but present the whole design as **one** section and take **one** yes; never ask for an approval per section. Two or three approaches with trade-offs and a recommendation come first, and they need an answer before the spec.
+- Two or three approaches with trade-offs and a recommendation, presented with the spec as **one** section taking **one** yes. Never ask for an approval per section.
 - Do not offer the visual companion, and do not run `superpowers:using-git-worktrees`.
-- Escape hatch: the facilitator may answer `use the issue text` to any question. Accept it, ask nothing further, and continue with what the issue already says.
 - Write the spec to the constant path above. Sections: what, who, behavior, acceptance criteria restated as tests, out of scope, the repos and files touched.
+- The line under the spec's title is `Context: docs/superpowers/briefs/<YYYY-MM-DD>-issue-<n>-<slug>.md` — the briefing is where everything the spec asserts about today's behavior comes from.
+- When the briefing says `UI: visible`, the spec carries a `## Looks` section: the control type, its icons, where it sits, and how it reads in both themes. That section is what the screenshots are checked against before the web pull request opens.
 - The facilitator's yes on the spec is the gate. No plan before it.
 
-When the approaches have been answered, comment once:
+When the design has been answered, comment once:
 
 ```bash
-gh issue comment <n> --repo $REPO --body "Interview done: <k> questions; approach chosen: <one line>."
+gh issue comment <n> --repo $REPO --body "Interview done: <k> questions, <r> recommendations taken; approach chosen: <one line>."
 ```
+
+`<k>` is how many questions the round actually asked (`0` when it was skipped), `<r>` how many of them were answered by taking the recommendation (`take your recommendations` makes the two equal).
+
+### The plan
 
 Then invoke `superpowers:writing-plans`, scaled down for a live 30-minute segment:
 
 - Write the plan to the constant path above.
 - One to four tasks per affected repo, no more. Each task names the repo's own skill (`backend/.claude/skills/add-api-endpoint/SKILL.md` for the API, `frontend/.claude/skills/add-frontend-feature/SKILL.md` for the web) and carries the failing test, the implementation, that repo's checks, and the commit.
+- **The web task carries the screenshot step whenever anything visible changes**: after the change is committed, run `node scripts/screenshot.mjs <scenario>` in `frontend/` (the scenarios are small files under `frontend/scripts/screenshots/`), open both PNGs with the Read tool, compare them against the spec's `## Looks` section, and commit `docs/screenshots/<name>-{light,dark}.png`. The web pull request body then embeds them with **commit-pinned** URLs — `https://raw.githubusercontent.com/kpnemo/kaizen-tasks-web/<sha of the commit that added the PNGs>/docs/screenshots/<file>`, never the branch name, and re-pinned if a later commit replaces the images. If the script exits 2, the body carries the one line `Screenshot unavailable: <the reason it printed>` and no images; that is the only allowed exception.
 - The spec's acceptance criteria are the global constraints; the smallest slice that satisfies all of them is the whole plan. If both repos change, the API changes first and the web follows after pulling the contract. When the contract itself changes, the plan carries the ripple as named tasks, not as an afterthought (Step 7, "The contract ripple"): the API's `docs/API.md` and README route table, the web's pull and regenerated types, the web's ADR, and the auth-store literal if the user shape moved.
 - Show the plan and wait for the facilitator's yes.
 
@@ -217,15 +373,18 @@ cd frontend && scripts/pull-openapi.sh --local ../backend/openapi.json && npm ru
 Then, in each affected repo, after `nvm use`:
 
 ```bash
+npm run openapi                                   # backend only, when the contract changed; it feeds the map, so it runs first
+npm run product-map                               # regenerates docs/product-map.md from this checkout
 npm test
 npm run typecheck
 npm run lint
-npm run openapi                                   # backend only, when the contract changed
 git add -A && git commit -m "feat: <short title> (#<n>)" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 BASE_SHA=$(git merge-base origin/develop HEAD) bash scripts/docs-check.sh --ci    # last line must be `docs-check: OK`
 ```
 
 Every command must exit 0, and the docs gate must print `docs-check: OK` on its last line.
+
+`npm run product-map` comes before the checks and before the commit for a reason: the docs gate regenerates the map on every run and compares it with the committed one, so a map that was not rebuilt fails the gate — and the map is what the next `/implement-issue` reads at Step 2b instead of guessing at the product. It is deterministic: on an unchanged tree it rewrites the same bytes and `git status` stays clean.
 
 Two traps in that last command, both of which cost time in the 2026-09-10 dry run:
 
@@ -234,7 +393,7 @@ Two traps in that last command, both of which cost time in the 2026-09-10 dry ru
 
 The gate runs after the commit because it reads the committed diff; if it fails, fix the docs and amend the commit.
 
-Do not run `superpowers:using-git-worktrees`. The isolated workspaces are the `feat/<n>-<slug>` branches created at Step 2 inside `backend/` and `frontend/` (and at Step 5 here, for the docs); a worktree of this repository would hold neither app repo, because both are git-ignored here. When `executing-plans` or `subagent-driven-development` asks for a worktree, say the branch is it and carry on.
+Do not run `superpowers:using-git-worktrees`. The isolated workspaces are the `feat/<n>-<slug>` branches created at Step 2 inside `backend/` and `frontend/` (and, at the same step, here, for the docs); a worktree of this repository would hold neither app repo, because both are git-ignored here. When `executing-plans` or `subagent-driven-development` asks for a worktree, say the branch is it and carry on.
 
 Do not run `superpowers:finishing-a-development-branch` either. Its menu offers integration choices; here the skill opens pull requests and stops, and the facilitator merges (`docs/runbook.md`).
 
@@ -287,16 +446,18 @@ Docs-check: `docs-check: OK`
 
 **No closing keyword, in any pull request, ever.** `develop` is the app repos' default branch, so GitHub acts on `Closes`/`Fixes` the moment a pull request merges there — that is staging, not production, and the issue must close only when the request is live in production. `Part of` puts the pull request on the issue's timeline as a cross-reference without any of that; the facilitator closes the issue by hand after the production read-back (`docs/runbook.md`, Ship), and `.github/workflows/issue-lifecycle.yml` moves the labels.
 
-Then, on the request path, the spec and the plan in this workspace repo, as a third, docs-only pull request:
+Then, on the request path, the briefing, the spec and the plan in this workspace repo, as a third, docs-only pull request:
 
 ```bash
-git switch feat/<n>-<slug>                                   # created at Step 5; brainstorming and writing-plans committed onto it
-git add docs/superpowers/specs/<file> docs/superpowers/plans/<file>
-git commit -m "docs: spec and plan for #<n>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"   # only if anything is still uncommitted
+git switch feat/<n>-<slug>                                   # created at Step 2; the briefing, the spec and the plan are on it
+git add docs/superpowers/briefs/<file> docs/superpowers/specs/<file> docs/superpowers/plans/<file>
+git commit -m "docs: briefing, spec and plan for #<n>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"   # only if anything is still uncommitted
 git push -u origin feat/<n>-<slug>
 gh pr create --repo $REPO --base develop --head feat/<n>-<slug> \
-  --title "docs: spec and plan for #<n>" --body "Spec and plan for #<n>. Docs only."
+  --title "docs: briefing, spec and plan for #<n>" --body "Briefing, spec and plan for #<n>. Docs only."
 ```
+
+All three files, never two: the briefing is the record of what the agent knew before it asked anything, and the reviewer reads the spec against it. Nothing from `.superpowers/` is staged — it is git-ignored scratch.
 
 Comment each pull request on the issue as it opens, one line each:
 
@@ -311,8 +472,8 @@ Print the pull request URLs. The API pull request is listed first, the docs one 
 Open the issue and read it top to bottom against the path you took.
 
 - Both paths: `Taken into work` with the branches, one `Pull request opened` per pull request, the label `implementing`, the assignee.
-- Request path only: `Interview done`, `Spec and plan approved`, and the docs pull request among the `Pull request opened` lines.
-- Bug path: none of those three, by design. There is no spec, no plan and no docs pull request to link, and a bug carries no triage comment because bugs are never scored.
+- Request path only: `Context gathered`, `Interview done`, `Spec and plan approved`, and the docs pull request among the `Pull request opened` lines. Open that docs pull request and check it carries three files: the briefing, the spec and the plan.
+- Bug path: none of those four, by design. There is no spec, no plan and no docs pull request to link, and a bug carries no triage comment because bugs are never scored.
 - The **Development** panel lists whatever Step 2's `createLinkedBranch` managed to link, and nothing else: the `Part of` line in a pull request body is a plain cross-reference, so it shows on the timeline ("mentioned this issue in ...") but never in that panel. The documented fallback (local branches, named in the take-into-work comment) is a pass, not a gap.
 - What must **not** be there yet: the `staging` label, the `shipped` label, a shipped comment, a closed state. All four come after this skill stops — `staging` from the app repos' workflow once the merges land, the rest at ship time.
 

@@ -3,6 +3,7 @@
 /frontend/
 
 node_modules/
+.superpowers/
 smoke/test-results/
 smoke/playwright-report/
 
