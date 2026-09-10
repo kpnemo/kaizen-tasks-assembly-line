@@ -25,6 +25,7 @@ label() { # name color description
 }
 
 label feature-request 1D76DB "A request filed through the feature request form"
+label bug D73A4A "A defect filed through the bug report form; skips the rubric, goes straight to implement-issue"
 
 # One gray-to-green gradient per scale, index 1..5.
 GRADIENT="BFBFBF A9CBA4 8FC48A 5FB35A 2EA043"
@@ -38,7 +39,7 @@ done
 
 label arch-change B60205 "Implies an architecture change; sorts after every other request"
 label triaged D4C5F9 "Scored by triage-requests"
-label implementing 9B6FE0 "implement-issue has opened pull requests"
+label implementing 9B6FE0 "implement-issue has taken the issue into work"
 label shipped 5319E7 "Merged to main and live in production"
 label triage-board FBCA04 "The pinned Triage board issue; carried by exactly one issue"
 

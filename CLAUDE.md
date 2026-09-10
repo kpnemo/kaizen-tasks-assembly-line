@@ -4,16 +4,17 @@ The workspace and cross-repo harness for the Kaizen Tasks workshop. This reposit
 
 ## Layout
 
-| Path                  | What it is                                                                                                                                                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `backend/`            | Nested repo `kpnemo/kaizen-tasks-api`, git-ignored here. Express 5 API on port 3000, Postgres, Redis and BullMQ, Anthropic SDK breakdown agent. Owns the API contract `openapi.json`.                                    |
-| `frontend/`           | Nested repo `kpnemo/kaizen-tasks-web`, git-ignored here. React 19 and Vite app on port 5173 in development, typed client generated from the API contract, Caddy proxy for `/api/*` in production.                        |
-| `rubric/readiness.md` | The readiness rubric. Versioned by its `version:` front-matter line; this repo owns it, and the product-skills repo and the API repo each vendor a copy, checking drift with their own `scripts/sync-rubric.sh --check`. |
-| `.claude/skills/`     | `triage-requests`, `implement-issue`, `seed-requests`.                                                                                                                                                                   |
-| `smoke/`              | Playwright smoke package, run by both app repos' `promote` workflows against staging.                                                                                                                                    |
-| `seeds/requests/`     | Four seeded feature requests. `triage/` holds dated triage reports.                                                                                                                                                      |
-| `scripts/`            | Workspace setup, labels, seeds, branch protection, root hooks.                                                                                                                                                           |
-| `docs/`               | PRD, runbook, Railway setup, specs and plans.                                                                                                                                                                            |
+| Path                      | What it is                                                                                                                                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `backend/`                | Nested repo `kpnemo/kaizen-tasks-api`, git-ignored here. Express 5 API on port 3000, Postgres, Redis and BullMQ, Anthropic SDK breakdown agent. Owns the API contract `openapi.json`.                                    |
+| `frontend/`               | Nested repo `kpnemo/kaizen-tasks-web`, git-ignored here. React 19 and Vite app on port 5173 in development, typed client generated from the API contract, Caddy proxy for `/api/*` in production.                        |
+| `rubric/readiness.md`     | The readiness rubric. Versioned by its `version:` front-matter line; this repo owns it, and the product-skills repo and the API repo each vendor a copy, checking drift with their own `scripts/sync-rubric.sh --check`. |
+| `.github/ISSUE_TEMPLATE/` | The two intake forms: `feature-request.yml` (label `feature-request`, scored by the rubric) and `bug-report.yml` (label `bug`, never scored, straight to `/implement-issue`). `npm run check:issue-form` validates both. |
+| `.claude/skills/`         | `triage-requests`, `implement-issue`, `seed-requests`.                                                                                                                                                                   |
+| `smoke/`                  | Playwright smoke package, run by both app repos' `promote` workflows against staging.                                                                                                                                    |
+| `seeds/requests/`         | Four seeded feature requests. `triage/` holds dated triage reports.                                                                                                                                                      |
+| `scripts/`                | Workspace setup, labels, seeds, branch protection, root hooks.                                                                                                                                                           |
+| `docs/`                   | PRD, runbook, playbook, Railway setup, specs and plans.                                                                                                                                                                  |
 
 ## Run both apps locally
 
@@ -37,10 +38,12 @@ The workspace and cross-repo harness for the Kaizen Tasks workshop. This reposit
 - `backend/.claude/skills/write-adr/SKILL.md` and `frontend/.claude/skills/write-adr/SKILL.md`
 - `backend/.claude/skills/release-notes/SKILL.md` and `frontend/.claude/skills/release-notes/SKILL.md`
 
+The superpowers plugin's skills are invoked by name with the Skill tool (`superpowers:brainstorming`, `superpowers:writing-plans`, `superpowers:executing-plans` or `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`). `implement-issue` routes into them instead of restating them.
+
 ## Rules
 
 - When a change touches both repos, the API changes first; the web follows after pulling the contract.
 - Nothing in this repository merges pull requests. Skills open pull requests and stop. Mike merges.
-- Skills never push to `develop` or `main` directly: feature branches and pull requests only, in every repo. `main` only ever receives `develop` by pull request after staging verification. (During the initial build, before the first workshop rehearsal, lanes commit straight to `develop`; that exception ends at the rehearsal.)
+- Skills never push to `develop` or `main` directly: feature branches and pull requests only, in every repo. The single exception is `triage-requests`, which pushes its dated report commit under `triage/` straight to this repo's `develop`, because the report has to land while triage is on screen; nothing else, in any repo, ever pushes to a shared branch. `main` only ever receives `develop` by pull request after staging verification. (During the initial build, before the first workshop rehearsal, lanes commit straight to `develop`; that exception ends at the rehearsal.)
 - Secrets never enter any repository.
 - Root hooks: Stop runs `scripts/docs-check-all.sh --hook`; PostToolUse on Edit or Write runs `scripts/format-file.sh`.

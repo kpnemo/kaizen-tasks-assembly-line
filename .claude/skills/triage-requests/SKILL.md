@@ -1,12 +1,14 @@
 ---
 name: triage-requests
-description: Rank open feature requests by readiness and write scores back to GitHub
+description: Rank open feature requests by readiness, write the scores back to GitHub, and ask which one to implement
 argument-hint: "[--score-only <issue number | file>] [--dry-run]"
 ---
 
 # triage-requests
 
-Score every open `feature-request` issue with `rubric/readiness.md`, rank them, write a dated report under `triage/`, and write the scores back to GitHub as labels, one upserted comment per issue, and the pinned Triage board. Every write is a replacement, so running the skill twice leaves the same state.
+Score every open `feature-request` issue with `rubric/readiness.md`, rank them, write a dated report under `triage/`, write the scores back to GitHub as labels, one upserted comment per issue and the pinned Triage board, push the report, and end by asking the facilitator which issue to implement. Every write is a replacement, so running the skill twice leaves the same state: run it a second time in front of the room to show the board, the labels and the comments unchanged.
+
+`bug` issues are never scored. The rubric ranks requests, not defects: a bug goes straight to `/implement-issue <n>`, which routes it to systematic debugging.
 
 Constants:
 
@@ -17,12 +19,12 @@ Constants:
 
 ## Modes
 
-| Invocation | Effect |
-|---|---|
-| `/triage-requests` | Full mode: score, report, labels, comments, board, summary |
-| `/triage-requests --dry-run` | Score and write the report file (uncommitted); print what would change on GitHub; write nothing to GitHub; no commit |
-| `/triage-requests --score-only 12` | Score issue 12 and print the result; write nothing anywhere |
-| `/triage-requests --score-only seeds/requests/02-smarter-ai.md` | Score a file; write nothing anywhere |
+| Invocation                                                      | Effect                                                                                                                                     |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/triage-requests`                                              | Full mode: score, report, labels, comments, board, push, summary, the question                                                             |
+| `/triage-requests --dry-run`                                    | Score and write the report file (uncommitted); print what would change on GitHub; write nothing to GitHub; no commit, no push, no question |
+| `/triage-requests --score-only 12`                              | Score issue 12 and print the result; write nothing anywhere                                                                                |
+| `/triage-requests --score-only seeds/requests/02-smarter-ai.md` | Score a file; write nothing anywhere                                                                                                       |
 
 ## Step 1: Read the rubric
 
@@ -30,7 +32,7 @@ Read `rubric/readiness.md` in full. Print `Rubric version: <n>` from its front m
 
 ## Step 2: Score-only mode
 
-Applies when `--score-only` is given. No writes of any kind: no labels, no comments, no report, no commit.
+Applies when `--score-only` is given. No writes of any kind: no labels, no comments, no report, no commit, no push, no question.
 
 1. Load the request text.
    - A number: `gh issue view <n> --repo $REPO --json title,body --jq '"# " + .title + "\n\n" + .body'`
@@ -45,7 +47,17 @@ gh issue list --repo $REPO --label feature-request --state open \
   --json number,title,body,createdAt,labels --limit 100
 ```
 
-The Triage board carries `triage-board`, not `feature-request`, so it never appears here. If the list is empty, print "No open feature requests" and stop.
+The label filter is the scope: the Triage board carries `triage-board` and bug reports carry `bug`, so neither ever appears here. Drop any issue whose fetched labels include `bug` even when it also carries `feature-request` — print `#<n> carries bug, not scored` and leave it to `/implement-issue`. If the list is empty, print "No open feature requests" and stop.
+
+Full mode writes and pushes a commit, so check the workspace repo first:
+
+```bash
+git rev-parse --abbrev-ref HEAD    # must be develop
+git status --porcelain             # must be empty
+git fetch origin develop && git rev-list --left-right --count origin/develop...HEAD   # must be 0 0
+```
+
+If any of the three is not as stated, run the rest as if `--dry-run` were given for the git side: write the report file, do not commit, do not push, and say why in one line. Never rebase, stash or switch branches to make room.
 
 ## Step 4: Score and rank
 
@@ -60,9 +72,9 @@ Write `triage/<YYYY-MM-DD>.md` with today's UTC date (`date -u +%F`):
 
 Rubric version <n>. <count> issues scored at <ISO timestamp, date -u +%FT%TZ>.
 
-| Rank | Issue | Title | Readiness | Clarity | Complexity | Risk | Arch |
-|---|---|---|---|---|---|---|---|
-| 1 | #<n> | <title> | 19 | 5 | 2 | 1 | no |
+| Rank | Issue | Title   | Readiness | Clarity | Complexity | Risk | Arch |
+| ---- | ----- | ------- | --------- | ------- | ---------- | ---- | ---- |
+| 1    | #<n>  | <title> | 19        | 5       | 2          | 1    | no   |
 
 ## #<n> <title>
 
@@ -104,10 +116,13 @@ gh issue edit <n> --repo $REPO --add-label "clarity:<c>,complexity:<x>,risk:<r>,
 
 3. Architecture flag: when `archChange` is true, `gh issue edit <n> --repo $REPO --add-label arch-change`. When false and the fetched labels include `arch-change`, `gh issue edit <n> --repo $REPO --remove-label arch-change`.
 
+Never touch `implementing` or `shipped`: `/implement-issue` sets `implementing` when it takes an issue into work, and the runbook's Ship block sets `shipped` after the merge.
+
 4. Write the comment to a temp file:
 
 ```markdown
 <!-- kaizen-triage -->
+
 **Triage** (rubric v<n>, <YYYY-MM-DD>): readiness **<score>**. Clarity <c>, complexity <x>, risk <r><, architecture change>.
 
 - Clarity: <one-line reason>
@@ -115,6 +130,7 @@ gh issue edit <n> --repo $REPO --add-label "clarity:<c>,complexity:<x>,risk:<r>,
 - Risk: <one-line reason>
 
 **Questions** (only when clarity is below 3; omit the heading otherwise)
+
 1. <question>
 2. <question>
 ```
@@ -143,15 +159,17 @@ If empty, run `scripts/setup-labels.sh` (it creates and pins the board) and read
 
 ```markdown
 <!-- kaizen-triage-board -->
+
 # Triage board
 
-| Rank | Issue | Title | Readiness | Clarity | Complexity | Risk | Arch | Status |
-|---|---|---|---|---|---|---|---|---|
-| 1 | #<n> | <title> | 19 | 5 | 2 | 1 | no | triaged |
+| Rank | Issue | Title   | Readiness | Clarity | Complexity | Risk | Arch | Status  |
+| ---- | ----- | ------- | --------- | ------- | ---------- | ---- | ---- | ------- |
+| 1    | #<n>  | <title> | 19        | 5       | 2          | 1    | no   | triaged |
 
-Status is `shipped` when the issue carries `shipped`, else `implementing` when it carries `implementing`, else `triaged`.
 Last run: <ISO timestamp>. Report: `triage/<YYYY-MM-DD>.md`. Rubric version <n>.
 ```
+
+The Status column is read from the issue's labels, not decided here: `shipped` when the issue carries `shipped`, else `implementing` when it carries `implementing` (`/implement-issue` adds that label the moment it takes the issue into work, before any interview or code), else `triaged`.
 
 Then `gh issue edit $board --repo $REPO --body-file <tempfile>`.
 
@@ -159,8 +177,35 @@ Then `gh issue edit $board --repo $REPO --body-file <tempfile>`.
 
 Print the top three as `#<n> <title> (readiness <score>)`, then `Recommended to implement next: #<n> <title>`, which is the first ranked issue with `archChange: false`. If every issue is an architecture change, say so and recommend none.
 
+## Step 9: Push the report
+
+Skip in `--dry-run`. Push the report commit and nothing else, and only from a clean `develop` that is level with the remote apart from that commit:
+
+```bash
+git fetch origin develop
+git status --porcelain                            # must be empty
+git rev-list --count origin/develop..HEAD         # must print 1
+git diff --name-only origin/develop..HEAD         # must list only triage/<YYYY-MM-DD>.md
+git push origin HEAD:develop
+```
+
+If any check fails — a dirty tree, a second commit ahead, an `implement-issue` docs branch still checked out — do not push, and do not rebase, stash or switch branches to fix it. Say what is in the way in one line, leave the report committed locally, and carry on to Step 10; the report is a record, not a gate.
+
+This is the one skill in this workspace allowed to push straight to `develop`, and only for that one docs commit under `triage/` (`CLAUDE.md`, Rules). Everything else here and in both app repos goes through a pull request.
+
+## Step 10: Ask which issue to implement
+
+The skill ends here, with a question. Never start implementing; never assume the recommended issue was chosen.
+
+Offer the issues that are **not** architecture changes: the top three, or two, or one, whichever exist. If none exists (every open request is an architecture change), say so, recommend none, and stop without asking.
+
+With the AskUserQuestion tool available: one question, `Which issue should we implement?`, those issues as the options, the recommended one first and its label ending in `(Recommended)`. Each option's description is `readiness <score>, clarity <c>` and the one-line clarity reason. Without the tool: print them as a numbered list. Either way, add the sentence `Or name another issue number, including a bug report.` — a `bug` issue is never on this list and is implemented by typing its number.
+
+Print the answer back as `Chosen: #<n> <title>` and the exact next command, `/implement-issue <n>`. Do not run it.
+
 ## Rules
 
 - Never merge, never close issues, never edit an issue's title or body. The only body this skill rewrites is the Triage board's.
 - Never post a second triage comment on an issue; always upsert by the marker.
 - Score from the text as written. Do not read linked pull requests or other issues.
+- Never implement, and never pick the issue for the facilitator. The last thing this skill does is ask.
