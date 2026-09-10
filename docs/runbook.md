@@ -23,6 +23,7 @@ Terminals to have open before the session, all at `webapp/`: T1 Claude Code (`cl
 
 ### T minus one day
 
+- [ ] A fresh Claude Code session in this workspace, started after the last change to `.claude/skills/`: skills are read when the process starts, and a session that predates a skill change keeps running the old text even after `/clear` (2026-09-10: a process started on 2026-09-08 injected the pre-#18 `implement-issue` and `triage-requests`). Quit Claude Code and start it again here before the room arrives.
 - [ ] Order of harness promotions: this repository's `main` only receives a smoke change after the app change it asserts on is live on staging (the footer version step 1b needs the web footer and the API `version` field there first); otherwise both app repos' `promote` gates fail until it is.
 - [ ] `kaizen-tasks-assembly-line` `main` carries the smoke package before any promotion: `gh api 'repos/kpnemo/kaizen-tasks-assembly-line/contents/smoke/package.json?ref=main' --jq .name` prints `package.json` (both app repos' `promote` workflows check this repo out at `main` and run the smoke package from there; re-point `main` at `develop` any time `smoke/` changes).
 - [ ] `STAGING_WEB_URL` is set on both app repos: `gh variable list --repo kpnemo/kaizen-tasks-api` and `gh variable list --repo kpnemo/kaizen-tasks-web` both show `STAGING_WEB_URL` (the API repo's `promote` job fails at step 1 without it; see `docs/cicd-log.md` for when it was set).
