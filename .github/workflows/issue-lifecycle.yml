@@ -1,8 +1,10 @@
 name: issue-lifecycle
 
-# The labels follow the issue state, so nobody has to remember to flip them:
-# closed as completed -> shipped; closed any other way -> neither; reopened -> back to implementing.
-# The issue itself is closed by the facilitator after the production read-back (docs/runbook.md, Ship).
+# The labels follow the issue's own state, so nobody has to flip them by hand. The lifecycle is
+# implementing (set by /implement-issue when it takes the issue into work) -> staging (set by the
+# app repos' staging-label workflow once every pull request is merged and staging serves them) ->
+# shipped (set here, when the facilitator closes the issue after the production read-back).
+# Reopening walks it back to implementing. This job never comments.
 
 on:
   issues:
@@ -19,24 +21,45 @@ jobs:
   labels:
     runs-on: ubuntu-latest
     steps:
-      - name: Move implementing and shipped to match the state
+      - name: Reconcile the lifecycle labels with the live issue
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           NUMBER: ${{ github.event.issue.number }}
-          ACTION: ${{ github.event.action }}
-          REASON: ${{ github.event.issue.state_reason }}
-          LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
         run: |
           set -euo pipefail
-          # The payload carries the labels as they were at the event, so a removal is only
-          # attempted when the label is actually there (gh errors on removing an absent label).
+          # The event payload is a snapshot, and a close followed quickly by a reopen would have two
+          # jobs each acting on its own stale copy. The event only says "something changed"; read the
+          # issue fresh and reconcile against that.
+          snapshot=$(gh issue view "$NUMBER" --repo "$REPO" --json state,stateReason,labels)
+          STATE=$(jq -r '.state' <<<"$snapshot")
+          REASON=$(jq -r '.stateReason // ""' <<<"$snapshot")
+          LABELS=$(jq -r '[.labels[].name] | join(",")' <<<"$snapshot")
+          echo "state=$STATE reason=$REASON labels=$LABELS"
+
           has() { case ",$LABELS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
           edit() { gh issue edit "$NUMBER" --repo "$REPO" "$@"; }
-          if [ "$ACTION" = closed ]; then
-            if has implementing; then edit --remove-label implementing; fi
-            if [ "$REASON" = completed ] && ! has shipped; then edit --add-label shipped; fi
+
+          # Was this issue ever taken into work? Current labels answer it most of the time, but a
+          # not-planned close strips `implementing` without adding anything, so fall back to the
+          # timeline: a `labeled` event is permanent, and an issue nobody ever worked on -- a stale
+          # seed, a duplicate tidied away -- must never be stamped `shipped`.
+          taken() {
+            if has implementing || has staging || has shipped; then return 0; fi
+            [ "$(gh api "repos/$REPO/issues/$NUMBER/timeline" --paginate --jq \
+                 '[.[] | select(.event=="labeled" and (.label.name=="implementing" or .label.name=="staging"))] | length')" -gt 0 ]
+          }
+
+          if [ "$STATE" = CLOSED ]; then
+            if [ "$REASON" = COMPLETED ] && taken; then
+              if ! has shipped; then edit --add-label shipped; fi
+            elif has shipped; then
+              edit --remove-label shipped
+            fi
+            for label in implementing staging; do
+              if has "$label"; then edit --remove-label "$label"; fi
+            done
           else
             if has shipped; then edit --remove-label shipped; fi
-            if has shipped || has implementing; then edit --add-label implementing; fi
+            if ! has implementing && ! has staging && taken; then edit --add-label implementing; fi
           fi
