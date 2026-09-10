@@ -2233,6 +2233,11 @@ Print the pull request URLs and the sentence `Ready for review and merge`. Do no
 
 ## Note on issue closing across repos
 
+> **Superseded 2026-09-10.** No pull request carries a closing keyword any more: `develop` is the app repos' default branch, so a keyword
+> closes the issue on the merge to staging. Bodies say `Part of ...#<n>`, the facilitator labels `shipped` and closes the issue after the
+> production read-back, and `.github/workflows/issue-lifecycle.yml` retires the in-work labels and reopens anything closed too early.
+> The paragraph below is kept as the historical record.
+
 `Closes kpnemo/kaizen-tasks-assembly-line#<n>` closes the issue when the pull request merges because the author has write access to the assembly-line repo (verification item L1 in the assembly-line spec). The runbook checks `gh issue view <n> --repo $REPO --json state` after the merge; if the issue is still open, the facilitator runs `gh issue close <n> --repo $REPO --comment "Shipped in <pr url>"`.
 ````
 
@@ -2241,7 +2246,7 @@ Print the pull request URLs and the sentence `Ready for review and merge`. Do no
 Run:
 
 ```bash
-node -e 'const s=require("fs").readFileSync(".claude/skills/implement-issue/SKILL.md","utf8"); const fm=s.split("---")[1]; for (const k of ["name: implement-issue","description:","argument-hint:"]) if(!fm.includes(k)) {console.error("missing "+k); process.exit(1)}; if(!/Never run `gh pr merge`/.test(s)) {console.error("never-merge rule missing"); process.exit(1)}; if(!/Closes kpnemo\/kaizen-tasks-assembly-line#<n>/.test(s)) {console.error("Closes line missing"); process.exit(1)}; console.log("skill ok")'
+node -e 'const s=require("fs").readFileSync(".claude/skills/implement-issue/SKILL.md","utf8"); const fm=s.split("---")[1]; for (const k of ["name: implement-issue","description:","argument-hint:"]) if(!fm.includes(k)) {console.error("missing "+k); process.exit(1)}; if(!/Never run `gh pr merge`/.test(s)) {console.error("never-merge rule missing"); process.exit(1)}; if(!/Part of kpnemo\/kaizen-tasks-assembly-line#<n>/.test(s)) {console.error("Part of line missing"); process.exit(1)}; if(/\bCloses kpnemo\/kaizen-tasks-assembly-line#<n>`?\s*$/m.test(s)) {console.error("a closing keyword is back in the PR template"); process.exit(1)}; console.log("skill ok")'
 grep -c 'gh pr merge' .claude/skills/implement-issue/SKILL.md
 ```
 

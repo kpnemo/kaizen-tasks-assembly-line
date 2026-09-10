@@ -1,0 +1,92 @@
+name: issue-lifecycle
+
+# The labels follow the issue's own state, so nobody has to flip them by hand. The lifecycle is
+# implementing (set by /implement-issue when it takes the issue into work) -> staging (set by the
+# app repos' staging-label workflow once every pull request is merged and staging serves them) ->
+# shipped (set by the facilitator's Ship step, immediately before the close). This job clears the
+# in-work labels on that close, walks the state back when a human reopens, and undoes a close the
+# facilitator did not ask for. It never comments except on that last case.
+#
+# Why the undo exists: a pull request opened from a GitHub-linked branch closes its linked issue
+# on merge into the default branch, cross-repo included and with no closing keyword in the body
+# (proved on 2026-09-10 with issue #15 and kaizen-tasks-api#11). `develop` is that default branch,
+# so the merge to staging can close a request that is not in production yet. The repository setting
+# "Auto-close issues with merged linked pull requests" being off is the primary fix; this is the
+# safety net for the session where somebody forgot to untick it.
+
+on:
+  issues:
+    types: [closed, reopened]
+
+permissions:
+  issues: write
+
+concurrency:
+  group: issue-lifecycle-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile the lifecycle labels with the live issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          # The event payload is a snapshot, and a close followed quickly by a reopen would have two
+          # jobs each acting on its own stale copy. The event only says "something changed"; read the
+          # issue fresh and reconcile against that.
+          snapshot=$(gh issue view "$NUMBER" --repo "$REPO" --json state,stateReason,labels)
+          STATE=$(jq -r '.state' <<<"$snapshot")
+          REASON=$(jq -r '.stateReason // ""' <<<"$snapshot")
+          LABELS=$(jq -r '[.labels[].name] | join(",")' <<<"$snapshot")
+          echo "state=$STATE reason=$REASON labels=$LABELS"
+
+          has() { case ",$LABELS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+          edit() { gh issue edit "$NUMBER" --repo "$REPO" "$@"; }
+          clear_in_work() {
+            for label in implementing staging; do
+              if has "$label"; then edit --remove-label "$label"; fi
+            done
+          }
+
+          # Was this issue ever taken into work? Current labels answer it most of the time, but a
+          # not-planned close strips `implementing` without adding anything, so fall back to the
+          # timeline: a `labeled` event is permanent.
+          #
+          # `--paginate` prints one JSON array PER PAGE, so gh's own `--jq '... | length'` would
+          # print one count per page ("1\n0" on any issue past 30 events, which a workshop issue
+          # reaches easily) and the numeric test below would die with "integer expression expected".
+          # `--slurp` wraps the pages into one array; it cannot be combined with gh's `--jq`, hence
+          # the pipe to jq, and `.[][]` flattens page-of-events into events.
+          taken() {
+            if has implementing || has staging || has shipped; then return 0; fi
+            local count
+            count=$(gh api "repos/$REPO/issues/$NUMBER/timeline" --paginate --slurp |
+              jq '[.[][] | select(.event=="labeled" and (.label.name=="implementing" or .label.name=="staging"))] | length') \
+              || { echo "timeline query failed for #$NUMBER" >&2; exit 1; }
+            case "$count" in '' | *[!0-9]*) echo "unexpected timeline count: $count" >&2; exit 1 ;; esac
+            [ "$count" -gt 0 ]
+          }
+
+          if [ "$STATE" = CLOSED ]; then
+            if [ "$REASON" = COMPLETED ] && has shipped; then
+              # The ship: the facilitator added `shipped` and then closed. Retire the in-work labels.
+              clear_in_work
+            elif [ "$REASON" = COMPLETED ] && { has implementing || has staging; }; then
+              # Nobody shipped this: a merged pull request closed an issue that is still in work.
+              # Put it back and leave its labels alone. A reopen by this job's own GITHUB_TOKEN
+              # raises no workflow event, so this cannot loop.
+              gh issue reopen "$NUMBER" --repo "$REPO" --comment \
+                "Reopened by the harness: a pull request merge closed this issue, but it is not in production yet. It closes at ship time."
+            else
+              # Not planned, duplicate, or a stale issue nobody ever worked on: just tidy the labels.
+              clear_in_work
+            fi
+          else
+            if has shipped; then edit --remove-label shipped; fi
+            if ! has implementing && ! has staging && taken; then edit --add-label implementing; fi
+          fi
