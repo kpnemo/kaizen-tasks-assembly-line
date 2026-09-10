@@ -4,16 +4,16 @@ The workspace and cross-repo harness for the Kaizen Tasks workshop. This reposit
 
 ## Layout
 
-| Path                  | What it is                                                                                                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `backend/`            | Nested repo `kpnemo/kaizen-tasks-api`, git-ignored here. Express 5 API on port 3000, Postgres, Redis and BullMQ, Anthropic SDK breakdown agent. Owns the API contract `openapi.json`.             |
-| `frontend/`           | Nested repo `kpnemo/kaizen-tasks-web`, git-ignored here. React 19 and Vite app on port 5173 in development, typed client generated from the API contract, Caddy proxy for `/api/*` in production. |
-| `rubric/readiness.md` | The readiness rubric. Versioned by its `version:` front-matter line; the product-skills repo vendors a copy.                                                                                      |
-| `.claude/skills/`     | `triage-requests`, `implement-issue`, `seed-requests`.                                                                                                                                            |
-| `smoke/`              | Playwright smoke package, run by both app repos' `promote` workflows against staging.                                                                                                             |
-| `seeds/requests/`     | Four seeded feature requests. `triage/` holds dated triage reports.                                                                                                                               |
-| `scripts/`            | Workspace setup, labels, seeds, branch protection, root hooks.                                                                                                                                    |
-| `docs/`               | PRD, runbook, Railway setup, specs and plans.                                                                                                                                                     |
+| Path                  | What it is                                                                                                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `backend/`            | Nested repo `kpnemo/kaizen-tasks-api`, git-ignored here. Express 5 API on port 3000, Postgres, Redis and BullMQ, Anthropic SDK breakdown agent. Owns the API contract `openapi.json`.                                    |
+| `frontend/`           | Nested repo `kpnemo/kaizen-tasks-web`, git-ignored here. React 19 and Vite app on port 5173 in development, typed client generated from the API contract, Caddy proxy for `/api/*` in production.                        |
+| `rubric/readiness.md` | The readiness rubric. Versioned by its `version:` front-matter line; this repo owns it, and the product-skills repo and the API repo each vendor a copy, checking drift with their own `scripts/sync-rubric.sh --check`. |
+| `.claude/skills/`     | `triage-requests`, `implement-issue`, `seed-requests`.                                                                                                                                                                   |
+| `smoke/`              | Playwright smoke package, run by both app repos' `promote` workflows against staging.                                                                                                                                    |
+| `seeds/requests/`     | Four seeded feature requests. `triage/` holds dated triage reports.                                                                                                                                                      |
+| `scripts/`            | Workspace setup, labels, seeds, branch protection, root hooks.                                                                                                                                                           |
+| `docs/`               | PRD, runbook, Railway setup, specs and plans.                                                                                                                                                                            |
 
 ## Run both apps locally
 

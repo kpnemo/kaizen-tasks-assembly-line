@@ -105,6 +105,7 @@ Kaizen Tasks is a personal task manager where every big task is broken into smal
 ### 5.4 Request a feature (optional, time permitting)
 
 - R18. A "Request a feature" page in the web app with the same fields as the GitHub issue form. Submitting creates a GitHub issue in the assembly-line repo through the API using a server-side token, labeled `feature-request`, with the submitter's display name in the body. This lets PMs without GitHub file requests from inside the product they are shaping.
+- R23. Extending R18, the "Request a feature" page is an interview: an assistant asks the PM one question at a time, drawn from the same readiness rubric as H7 and H10, until the request is ready; the five request fields (R18) fill in live beside the chat with a readiness chip. The interview stops when the silent score reaches clarity 4 or higher with a stated scope and at least three checkable acceptance criteria, or at eight questions, whichever comes first. The PM reviews the prefilled form (still R18's endpoint, unchanged) and clicks "Review and file" to submit. The filed GitHub issue gains a collapsed "How this request was refined (assistant interview)" section carrying the PM's self-score against the rubric and the interview transcript, so engineering's triage (H7) sees how the request got ready. Escape hatch: "Skip the interview, fill the form" shows the plain R18 form at any time, so the interview never blocks filing a request.
 
 ### 5.5 Non-functional
 
