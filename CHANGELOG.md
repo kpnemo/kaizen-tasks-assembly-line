@@ -14,6 +14,7 @@ All notable changes to this repository are documented here. The format follows
 
 ### Changed
 
+- `docs/cicd-log.md`: recorded the 1.1.1 promotion (the interview agent) with the production read-backs, the version check, the production smoke and the interview probes.
 - `docs/runbook.md`: Part 1's intake segment (8 to 23, was 8 to 20) adds the assistant interview path on "Request a feature" alongside the plain form, with a gate line in section 3, a failure-page row for a slow or erroring assistant, and a pre-session check to run one interview on production the day before; the buffer (section 2) shrinks from 10 to 7 minutes and the cutoff rule moves to minute 68 to keep Part 1 at 75 minutes.
 - `docs/PRD.md`: R23 documents the "Request a feature" interview extending R18: what the PM sees, the readiness stop rule, the prefilled form and issue section, and the escape hatch to the plain form.
 - `README.md` and `CLAUDE.md`: the readiness rubric now has three consumers (this repo, product-skills, and the API's interview agent); each vendoring repo checks drift with its own `scripts/sync-rubric.sh --check`.
