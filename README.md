@@ -35,6 +35,12 @@ Open Claude Code at the workspace root (`claude` in this folder). The skills are
 | `scripts/format-file.sh`                               | Root PostToolUse hook: format an edited file with the owning repo's prettier.         |
 | `scripts/check-versions.sh`                            | Check that `backend/package.json` and `frontend/package.json` carry the same version. |
 
+## Workflows
+
+`.github/workflows/ci.yml` lints and typechecks the smoke package and validates the issue forms and the rubric.
+
+`.github/workflows/issue-lifecycle.yml` keeps the labels in step with the issue's own state: closing an issue as completed removes `implementing` and adds `shipped`, closing it as not planned or duplicate only removes `implementing`, and reopening puts `implementing` back on an issue that had been taken into work. It posts nothing. Because it is an `issues` workflow, GitHub always runs the copy on the repository's **default branch**, which here is `develop` — it is live as soon as it merges there, and needs no promotion to `main`. No step in the runbook or in either skill sets those two labels by hand (the only exception is the failure-page recovery when a run does not fire). And no pull request in either app repo carries a closing keyword (`Part of kpnemo/kaizen-tasks-assembly-line#<n>`, never `Closes`), because merging into `develop` is staging and the issue closes only at ship time (`docs/runbook.md`, Ship).
+
 ## Smoke package
 
 `smoke/` is a Playwright test that registers a user, creates a task, waits for the assistant, accepts a suggestion, and logs out; it also asserts the footer prints the version the API reports. Promote a smoke change to `main` only after the app change it asserts on is live on staging, since both app repos' `promote` gates run whatever `main` holds. Both app repos check this repository out at `main` and run it against staging in their `promote` workflow. See `smoke/README.md`. Because `promote` reads `main`, not `develop`, `main` must be re-pointed at `develop` after any change to `smoke/` — verify with `gh api 'repos/kpnemo/kaizen-tasks-assembly-line/contents/smoke/package.json?ref=main' --jq .name`, expecting `package.json`.

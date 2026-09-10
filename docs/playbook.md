@@ -114,15 +114,16 @@ gh pr checks <web promote pr url> --watch && gh pr merge <web promote pr url> --
 ```
 curl -fsS https://web-production-7ef71.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'
 curl -fsS https://web-production-7ef71.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'
-gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state --jq .state   # expect CLOSED
-gh issue edit <n> --repo kpnemo/kaizen-tasks-assembly-line --add-label shipped --remove-label implementing
-gh issue comment <n> --repo kpnemo/kaizen-tasks-assembly-line --body "Shipped in <promotion pr url>; production serves <version>."
-# only if the state above is OPEN:
-gh issue close <n> --repo kpnemo/kaizen-tasks-assembly-line --comment "Shipped in <promotion pr url>"
+gh issue close <n> --repo kpnemo/kaizen-tasks-assembly-line --reason completed \
+  --comment "Shipped in api <version> (<sha>) and web <version> (<sha>): https://web-production-7ef71.up.railway.app"
+gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state,labels --jq '.state + " " + ([.labels[].name] | join(","))'
 ```
 
+then open the Triage board and flip that issue's row, Status `implementing` → `shipped` (the one cell `/implement-issue` set when it took the issue into work)
+
 - **SEE** the new version and commit on both halves, the feature on production, the footer's new version, and the issue `CLOSED` with the shipped comment as its last line
-- **SAY** "Your idea, your criteria, in production, with the tests and gates that got it there."
+- **SEE** the labels follow on their own within a few seconds: `shipped` appears and `implementing` disappears, from `.github/workflows/issue-lifecycle.yml`; reload the issue if the room misses it
+- **SAY** "No pull request closed this: merging to develop is staging. I close it after reading production back, the labels move themselves, and that is your idea, your criteria, in production."
 
 ## If it breaks
 
@@ -134,6 +135,7 @@ gh issue close <n> --repo kpnemo/kaizen-tasks-assembly-line --comment "Shipped i
 | `promote` red on the smoke                                 | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote. |
 | Railway slow (`BUILDING` past five minutes)                | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.             |
 | A bug report was filed instead of a request                | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                     |
+| The issue closed but the labels did not move               | `gh issue edit <n> --add-label shipped --remove-label implementing` and carry on; check the run later.    |
 
 ## Numbers to keep in mind
 
