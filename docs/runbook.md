@@ -98,6 +98,9 @@ railway deployment list --service web --environment staging --limit 1 --json | j
 curl -fsS https://web-staging-52c0.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'   # after the API deploy
 curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'              # after the web deploy
 # promotion, API first, then web; each promote job runs the smoke against staging (footer version included)
+# open each promotion pull request only after the staging read-back above shows develop's head: opened
+# earlier, `promote` waits for staging while Railway's wait-for-CI waits for `promote`, the same deadlock
+# staging-label had on 2026-09-10 (docs/cicd-log.md)
 gh pr create --repo kpnemo/kaizen-tasks-api --base main --head develop --title "release: <version>" --body "Promote develop to main"
 # both required gates must have registered before --watch means anything; bounded at 2 minutes
 wait_for_gates() {   # $1 = promotion pull request url
