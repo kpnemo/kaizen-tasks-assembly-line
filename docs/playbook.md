@@ -51,7 +51,7 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 
 ## 7. One round, the design, the approach, the spec, the plan
 
-- **TYPE** answer the round in one message, or say "take your recommendations", or say "use the issue text"; pick the design option when it appears; then one yes to the design, one yes to the plan
+- **TYPE** answer the round in one message, or say "take your recommendations" (takes every one, rewordings included, so the run always carries on), or say "use the issue text" (ends the questioning too, but may leave one untestable criterion to answer); pick the design option when it appears; then one yes to the design, one yes to the plan
 - **SEE** **one** round of at most four numbered questions, each with the agent's own recommended answer under it (blockers first: any acceptance criterion that cannot be turned into a test, with a testable rewording offered); no second round
 - **SEE** when the request changes something visible, the design question as option cards with a small mockup in each, the recommended one first — or, when your request already said how it should look, that design shown back for a yes instead of a menu
 - **SEE** then the approaches with a recommendation, and the briefing, spec and plan files under `docs/superpowers/`; the spec's `Looks` section says the control, the icons, the placement and both themes
@@ -147,17 +147,17 @@ then open the Triage board and flip that issue's row, Status `implementing` (or 
 
 ## If it breaks
 
-| Symptom                                                   | Recovery in one line                                                                                                   |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| The in-app assistant is slow or toasts                    | Click "Skip the interview, fill the form" and keep going with the plain form.                                          |
-| The round stalls or asks something silly                  | Answer "take your recommendations", or "use the issue text"; either ends the round and moves to the approaches.        |
-| CI red on `develop`                                       | Open the failing job's log on screen, fix forward if it is one line, otherwise move on and say so.                     |
-| `promote` red on the smoke                                | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote.              |
-| Railway slow (`BUILDING` past five minutes)               | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.                          |
-| A bug report was filed instead of a request               | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                                  |
-| `implementing` or `staging` is still there after the wait | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later.              |
-| The issue reopened itself, "Reopened by the harness"      | Before the read-back: a merge closed it, correct, leave it open and keep promoting. After: add `shipped`, close again. |
-| `staging` never arrives after both halves are on staging  | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.                         |
+| Symptom                                                   | Recovery in one line                                                                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The in-app assistant is slow or toasts                    | Click "Skip the interview, fill the form" and keep going with the plain form.                                                                                                   |
+| The round stalls or asks something silly                  | Answer "take your recommendations" — it takes the rewordings too, so it always moves on. "use the issue text" also ends the questioning, but can leave one criterion to answer. |
+| CI red on `develop`                                       | Open the failing job's log on screen, fix forward if it is one line, otherwise move on and say so.                                                                              |
+| `promote` red on the smoke                                | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote.                                                                       |
+| Railway slow (`BUILDING` past five minutes)               | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.                                                                                   |
+| A bug report was filed instead of a request               | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                                                                                           |
+| `implementing` or `staging` is still there after the wait | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later.                                                                       |
+| The issue reopened itself, "Reopened by the harness"      | Before the read-back: a merge closed it, correct, leave it open and keep promoting. After: add `shipped`, close again.                                                          |
+| `staging` never arrives after both halves are on staging  | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.                                                                                  |
 
 ## Numbers to keep in mind
 

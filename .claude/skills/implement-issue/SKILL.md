@@ -271,7 +271,9 @@ Invoke `mattpocock-skills:grilling` and give it this override block, verbatim, a
 > - **No subagents.** Do not dispatch anything to find facts. The facts are already gathered: they are in `docs/superpowers/briefs/<YYYY-MM-DD>-issue-<n>-<slug>.md`, and the one exploration that produced them has already run (Step 2b).
 > - **No "shared understanding" confirmation.** Do not ask the user to confirm a shared understanding at the end. The gates are the ones named below and nothing else.
 > - **At most four numbered questions**, in the skill's own format (`❓ **Q1** — **<title>**: …` then `➡️ <recommended answer>`), every one of them carrying its recommended answer.
-> - **The round ends** the moment the product owner answers, or says `take your recommendations`, or says `use the issue text` — whichever comes first. Then stop asking and continue with what you have.
+> - **The round ends** the moment the product owner answers, or says `take your recommendations`, or says `use the issue text` — whichever comes first. Then stop asking. Both phrases end the **questioning**; neither is an instruction to proceed regardless of what is still unsettled.
+>   - `take your recommendations` **accepts every recommended answer**, the proposed testable rewordings of acceptance criteria included. Progression is therefore guaranteed: nothing is left untestable, and the run continues to the approaches.
+>   - `use the issue text` takes what the issue already says and nothing more. That can leave an acceptance criterion still untestable — and then the skill stops with that **one** criterion and the question that would settle it, exactly as Step 3 says. Do not ask anything else, and do not guess.
 
 #### Building the round
 
@@ -288,7 +290,7 @@ Four questions is a hard ceiling, and the design question must never be the one 
 
 Two rules on shape. When two open questions depend on each other, never ask them separately: present complete alternatives as the options — bundles, each one answering both, so no answer can strand the other (a bundle is one slot, not two). And when the list is empty after step 2 — the briefing left nothing open and the classification is `UI: none` — there is no round at all: print `No open questions: the issue and the product maps answer everything, and nothing visible changes.` and go straight to the approaches.
 
-`take your recommendations` answers the whole round at once; `use the issue text` ends it with what the issue already says. Both are in the runbook's failure page, and neither is permission to merge anything: this skill still never merges.
+The two escape hatches end the questioning but do not end it the same way. `take your recommendations` answers the whole round at once and accepts the proposed rewordings with it, so no criterion is left untestable and the run always continues. `use the issue text` ends the questioning with what the issue already says, which is not the same guarantee: if a criterion is still untestable afterwards, Step 3's stop applies and the skill stops there with that one criterion and its question rather than guessing at it. Both are in the runbook's failure page, and neither is permission to merge anything: this skill still never merges.
 
 Gates after the round, and only these: the `arch-change` confirmation at Step 4 when the label is present, one yes on the design (the approaches and the spec together), one yes on the plan.
 
