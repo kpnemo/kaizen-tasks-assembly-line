@@ -65,7 +65,17 @@ Before the interview, before any code:
 gh issue edit <n> --repo $REPO --add-label implementing --add-assignee @me
 ```
 
-The Triage board reads `implementing` from this label, so the room sees the status move before the work starts. Never set or remove `shipped`: `.github/workflows/issue-lifecycle.yml` swaps the two labels when the facilitator closes the issue at ship time, and swaps them back on a reopen.
+The Triage board reads `implementing` from this label, so the room sees the status move before the work starts.
+
+`implementing` is the only lifecycle label this skill ever touches. The three states, and who sets each:
+
+| Label          | Meaning                                           | Set by                                                                         |
+| -------------- | ------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `implementing` | taken into work, code being written               | **this skill**, right here                                                     |
+| `staging`      | every pull request merged and staging serves them | the app repos' `staging-label` workflow, after the merges                      |
+| `shipped`      | live in production                                | `.github/workflows/issue-lifecycle.yml`, when the facilitator closes the issue |
+
+Never set or remove `staging` or `shipped`. Both arrive after this skill has stopped.
 
 Then create the working branch in each repo the request touches, **through GitHub**, so it shows under **Development** on the issue at once. Guess the repos from the request now (schema, queue, auth, prompt, proxy: `kaizen-tasks-api`; router, client, Caddyfile: `kaizen-tasks-web`); if the spec later pulls in the other repo, run the same block for it then. Resolve every id at run time, never hardcode one:
 
@@ -81,7 +91,7 @@ done
 git -C <backend|frontend> fetch origin && git -C <backend|frontend> switch feat/$N-$SLUG
 ```
 
-`createLinkedBranch` accepts a `repositoryId` in a different repository from the issue's, so a branch in either app repo links back to this issue (`issueId` and `oid` are required, `name` and `repositoryId` optional; check with `gh api graphql -f query='{ __type(name:"CreateLinkedBranchInput"){ inputFields{ name } } }'` if a call is rejected). The branch shows under Development immediately and the pull request links when it opens through the `Part of kpnemo/kaizen-tasks-assembly-line#<n>` line in its body; nothing in a pull request ever closes the issue (see the note at the end).
+`createLinkedBranch` accepts a `repositoryId` in a different repository from the issue's, so a branch in either app repo links back to this issue (`issueId` and `oid` are required, `name` and `repositoryId` optional; check with `gh api graphql -f query='{ __type(name:"CreateLinkedBranchInput"){ inputFields{ name } } }'` if a call is rejected). The branch shows under **Development** immediately, and it is the linked branch — not the `Part of` line in the pull request body — that keeps that panel populated once the pull request opens from it. Nothing a pull request says ever closes the issue (see the note at the end).
 
 If the mutation fails (the branch already exists from an earlier run, or the API refuses), create the branches locally with the `git switch -c` fallback in Step 7; the branch names still go in the comment below, they just do not appear under Development.
 
@@ -275,7 +285,7 @@ Passing run after:
 Docs-check: `docs-check: OK`
 ````
 
-**No closing keyword, in any pull request, ever.** `develop` is the app repos' default branch, so GitHub acts on `Closes`/`Fixes` the moment a pull request merges there — that is staging, not production, and the issue must close only when the request is live in production. `Part of` links the pull request under the issue's **Development** panel and its timeline exactly the same way; the facilitator closes the issue by hand after the production read-back (`docs/runbook.md`, Ship), and `.github/workflows/issue-lifecycle.yml` moves the labels.
+**No closing keyword, in any pull request, ever.** `develop` is the app repos' default branch, so GitHub acts on `Closes`/`Fixes` the moment a pull request merges there — that is staging, not production, and the issue must close only when the request is live in production. `Part of` puts the pull request on the issue's timeline as a cross-reference without any of that; the facilitator closes the issue by hand after the production read-back (`docs/runbook.md`, Ship), and `.github/workflows/issue-lifecycle.yml` moves the labels.
 
 Then, on the request path, the spec and the plan in this workspace repo, as a third, docs-only pull request:
 
@@ -303,9 +313,10 @@ Open the issue and read it top to bottom against the path you took.
 - Both paths: `Taken into work` with the branches, one `Pull request opened` per pull request, the label `implementing`, the assignee.
 - Request path only: `Interview done`, `Spec and plan approved`, and the docs pull request among the `Pull request opened` lines.
 - Bug path: none of those three, by design. There is no spec, no plan and no docs pull request to link, and a bug carries no triage comment because bugs are never scored.
-- Linked branches under Development only when Step 2's mutation succeeded. The documented fallback (local branches, named in the take-into-work comment) is a pass, not a gap.
+- The **Development** panel lists whatever Step 2's `createLinkedBranch` managed to link, and nothing else: the `Part of` line in a pull request body is a plain cross-reference, so it shows on the timeline ("mentioned this issue in ...") but never in that panel. The documented fallback (local branches, named in the take-into-work comment) is a pass, not a gap.
+- What must **not** be there yet: the `staging` label, the `shipped` label, a shipped comment, a closed state. All four come after this skill stops — `staging` from the app repos' workflow once the merges land, the rest at ship time.
 
-Post any comment genuinely missing for the path you took, and invent none. The room reads the journey here, not in the terminal. The issue stays **open** and labelled `implementing`: the close, the shipped comment and the `shipped` label all come later, at ship time.
+Post any comment genuinely missing for the path you took, and invent none. The room reads the journey here, not in the terminal. The issue stays **open** and labelled `implementing`.
 
 ## Step 10: Stop
 
@@ -315,4 +326,4 @@ Print the pull request URLs and the sentence `Ready for review and merge`. Do no
 
 The issue closes when the request is live in production, and never before. No pull request this skill opens carries `Closes`, `Fixes` or `Resolves`: `develop` is the default branch in both app repos, so a keyword would close the issue on the first merge to staging — which is exactly what happened to #11 in the 2026-09-10 dry run, half a feature and two promotions early. A keyword close also leaves the labels behind, because GitHub does not touch them.
 
-So: every pull request body says `Part of kpnemo/kaizen-tasks-assembly-line#<n>`, which links it under **Development** and in the timeline just as well; the facilitator closes the issue after the production read-back with one command that also comments (`docs/runbook.md`, Ship); and `.github/workflows/issue-lifecycle.yml` swaps `implementing` for `shipped` on that close, and swaps them back if the issue is ever reopened.
+So: every pull request body says `Part of kpnemo/kaizen-tasks-assembly-line#<n>`. That is a plain cross-reference — it puts the pull request on the issue's timeline as "mentioned this issue in ...", which is what the room reads; the **Development** panel is fed by the branch Step 2 linked, not by this line. The facilitator then closes the issue after the production read-back, with one command that also comments (`docs/runbook.md`, Ship), and `.github/workflows/issue-lifecycle.yml` reacts to that close: `implementing` and `staging` off, `shipped` on, and back the other way on a reopen.
