@@ -129,16 +129,16 @@ gh issue edit <n> --repo kpnemo/kaizen-tasks-assembly-line --add-label shipped
 gh issue close <n> --repo kpnemo/kaizen-tasks-assembly-line --reason completed \
   --comment "Shipped in api <version> (<sha>) and web <version> (<sha>): https://web-production-7ef71.up.railway.app"
 for i in $(seq 1 9); do
-  labels=$(gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json labels --jq '[.labels[].name] | join(" ")')
-  case " $labels " in *" implementing "*|*" staging "*) sleep 10 ;; *) break ;; esac
+  read -r state labels <<<"$(gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state,labels --jq '.state + " " + ([.labels[].name] | join(" "))')"
+  case " $labels " in *" implementing "*|*" staging "*) [ "$state" = CLOSED ] && sleep 10 || break ;; *) break ;; esac
 done
-echo "$labels"
+echo "$state $labels"     # expect: CLOSED shipped. OPEN means the harness reopened it (not in production yet): see section 4, do not add shipped again
 ```
 
-then open the Triage board and flip that issue's row, Status `staging` → `shipped` (the same cell `/implement-issue` set when it took the issue into work)
+then open the Triage board and flip that issue's row, Status `implementing` (or `staging`, if triage ran again) → `shipped` (the same cell `/implement-issue` set when it took the issue into work)
 
 - **SEE** the new version and commit on both halves, the feature on production, the footer's new version, and the issue `CLOSED` with the shipped comment as its last line
-- **SEE** the loop return within about a minute with `shipped` on the issue and `staging` gone, retired by `.github/workflows/issue-lifecycle.yml`, not by you
+- **SEE** the loop return within about a minute with `implementing` and `staging` retired by `.github/workflows/issue-lifecycle.yml`, not by you; `shipped` is the one you added
 - **SAY** "Label first, then close: that is how the harness knows this close is a ship. Anything else that closes a request in work, it puts straight back. And that is your idea, your criteria, in production."
 
 ## If it breaks
