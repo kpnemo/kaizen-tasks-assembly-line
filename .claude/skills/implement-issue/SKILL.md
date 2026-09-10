@@ -69,13 +69,13 @@ The Triage board reads `implementing` from this label, so the room sees the stat
 
 `implementing` is the only lifecycle label this skill ever touches. The three states, and who sets each:
 
-| Label          | Meaning                                           | Set by                                                                         |
-| -------------- | ------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `implementing` | taken into work, code being written               | **this skill**, right here                                                     |
-| `staging`      | every pull request merged and staging serves them | the app repos' `staging-label` workflow, after the merges                      |
-| `shipped`      | live in production                                | `.github/workflows/issue-lifecycle.yml`, when the facilitator closes the issue |
+| Label          | Meaning                                           | Set by                                                              |
+| -------------- | ------------------------------------------------- | ------------------------------------------------------------------- |
+| `implementing` | taken into work, code being written               | **this skill**, right here                                          |
+| `staging`      | every pull request merged and staging serves them | the app repos' `staging-label` workflow, after the merges           |
+| `shipped`      | live in production                                | the facilitator's Ship step, immediately before it closes the issue |
 
-Never set or remove `staging` or `shipped`. Both arrive after this skill has stopped.
+Never set or remove `staging` or `shipped`. Both arrive after this skill has stopped. `.github/workflows/issue-lifecycle.yml` retires `implementing` and `staging` on that close — and puts the issue back if something closes it while it is still in work.
 
 Then create the working branch in each repo the request touches, **through GitHub**, so it shows under **Development** on the issue at once. Guess the repos from the request now (schema, queue, auth, prompt, proxy: `kaizen-tasks-api`; router, client, Caddyfile: `kaizen-tasks-web`); if the spec later pulls in the other repo, run the same block for it then. Resolve every id at run time, never hardcode one:
 
@@ -326,4 +326,6 @@ Print the pull request URLs and the sentence `Ready for review and merge`. Do no
 
 The issue closes when the request is live in production, and never before. No pull request this skill opens carries `Closes`, `Fixes` or `Resolves`: `develop` is the default branch in both app repos, so a keyword would close the issue on the first merge to staging — which is exactly what happened to #11 in the 2026-09-10 dry run, half a feature and two promotions early. A keyword close also leaves the labels behind, because GitHub does not touch them.
 
-So: every pull request body says `Part of kpnemo/kaizen-tasks-assembly-line#<n>`. That is a plain cross-reference — it puts the pull request on the issue's timeline as "mentioned this issue in ...", which is what the room reads; the **Development** panel is fed by the branch Step 2 linked, not by this line. The facilitator then closes the issue after the production read-back, with one command that also comments (`docs/runbook.md`, Ship), and `.github/workflows/issue-lifecycle.yml` reacts to that close: `implementing` and `staging` off, `shipped` on, and back the other way on a reopen.
+The keyword is not the only way, though, and this one is worth knowing before you rely on Step 2's linked branches: a pull request opened from a GitHub-linked branch closes its linked issue on merge into the default branch **with no keyword in the body at all**, across repositories included — proved on 2026-09-10 with issue #15 and `kaizen-tasks-api#11`, which closed one second after that merge. The linked branches stay (the room reads the **Development** panel), and three things stop them closing anything early: the harness repository has "Auto-close issues with merged linked pull requests" switched off, the facilitator adds `shipped` before closing so a real ship is distinguishable, and `.github/workflows/issue-lifecycle.yml` reopens with a comment any issue closed while it still carries `implementing` or `staging`.
+
+So: every pull request body says `Part of kpnemo/kaizen-tasks-assembly-line#<n>`. That is a plain cross-reference — it puts the pull request on the issue's timeline as "mentioned this issue in ...", which is what the room reads; the **Development** panel is fed by the branch Step 2 linked, not by this line. The facilitator then labels and closes the issue after the production read-back, with the commands in `docs/runbook.md`, Ship, and the lifecycle workflow retires `implementing` and `staging`.

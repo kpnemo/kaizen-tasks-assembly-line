@@ -118,7 +118,7 @@ gh issue edit <n> --repo $REPO --add-label "clarity:<c>,complexity:<x>,risk:<r>,
 
 `arch-change` is what makes `/implement-issue` stop once for a human: it writes an ADR and waits for `confirm to continue` before any code (that skill's Step 4). It is the only architecture gate. ADRs that a nested repo's own skill writes later, because the change touched that repo's architectural files — the web repo counts `src/api/**`, so every contract pull writes one — are records, not gates, and nobody is asked to confirm them. Set the label from the rubric's architecture test only; never from a hunch about how much documentation the change will need.
 
-Never touch the three lifecycle labels `implementing`, `staging` and `shipped`. `/implement-issue` sets `implementing` when it takes an issue into work; the app repos' `staging-label` workflow sets `staging` once every pull request for the issue is merged and staging serves them; `.github/workflows/issue-lifecycle.yml` clears both and sets `shipped` when the facilitator closes the issue at ship time, and walks it back on a reopen. This skill only reads them, in Step 7.
+Never touch the three lifecycle labels `implementing`, `staging` and `shipped`. `/implement-issue` sets `implementing` when it takes an issue into work; the app repos' `staging-label` workflow sets `staging` once every pull request for the issue is merged and staging serves them; the facilitator adds `shipped` at ship time and then closes the issue, and `.github/workflows/issue-lifecycle.yml` clears the other two on that close and walks the state back on a reopen. This skill only reads them, in Step 7.
 
 4. Write the comment to a temp file:
 
@@ -175,7 +175,7 @@ The Status column is read from the issue's labels, not decided here. Take the fi
 
 | Status         | When the issue carries | Put there by                                                                                       |
 | -------------- | ---------------------- | -------------------------------------------------------------------------------------------------- |
-| `shipped`      | `shipped`              | `.github/workflows/issue-lifecycle.yml`, when the facilitator closes the issue at ship time        |
+| `shipped`      | `shipped`              | the facilitator's Ship step, immediately before it closes the issue                                |
 | `staging`      | `staging`              | the app repos' `staging-label` workflow, once every pull request is merged and staging serves them |
 | `implementing` | `implementing`         | `/implement-issue`, the moment it takes the issue into work, before any interview or code          |
 | `triaged`      | none of the three      | this skill                                                                                         |

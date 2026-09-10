@@ -3,8 +3,16 @@ name: issue-lifecycle
 # The labels follow the issue's own state, so nobody has to flip them by hand. The lifecycle is
 # implementing (set by /implement-issue when it takes the issue into work) -> staging (set by the
 # app repos' staging-label workflow once every pull request is merged and staging serves them) ->
-# shipped (set here, when the facilitator closes the issue after the production read-back).
-# Reopening walks it back to implementing. This job never comments.
+# shipped (set by the facilitator's Ship step, immediately before the close). This job clears the
+# in-work labels on that close, walks the state back when a human reopens, and undoes a close the
+# facilitator did not ask for. It never comments except on that last case.
+#
+# Why the undo exists: a pull request opened from a GitHub-linked branch closes its linked issue
+# on merge into the default branch, cross-repo included and with no closing keyword in the body
+# (proved on 2026-09-10 with issue #15 and kaizen-tasks-api#11). `develop` is that default branch,
+# so the merge to staging can close a request that is not in production yet. The repository setting
+# "Auto-close issues with merged linked pull requests" being off is the primary fix; this is the
+# safety net for the session where somebody forgot to untick it.
 
 on:
   issues:
@@ -39,11 +47,15 @@ jobs:
 
           has() { case ",$LABELS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
           edit() { gh issue edit "$NUMBER" --repo "$REPO" "$@"; }
+          clear_in_work() {
+            for label in implementing staging; do
+              if has "$label"; then edit --remove-label "$label"; fi
+            done
+          }
 
           # Was this issue ever taken into work? Current labels answer it most of the time, but a
           # not-planned close strips `implementing` without adding anything, so fall back to the
-          # timeline: a `labeled` event is permanent, and an issue nobody ever worked on -- a stale
-          # seed, a duplicate tidied away -- must never be stamped `shipped`.
+          # timeline: a `labeled` event is permanent.
           taken() {
             if has implementing || has staging || has shipped; then return 0; fi
             [ "$(gh api "repos/$REPO/issues/$NUMBER/timeline" --paginate --jq \
@@ -51,14 +63,19 @@ jobs:
           }
 
           if [ "$STATE" = CLOSED ]; then
-            if [ "$REASON" = COMPLETED ] && taken; then
-              if ! has shipped; then edit --add-label shipped; fi
-            elif has shipped; then
-              edit --remove-label shipped
+            if [ "$REASON" = COMPLETED ] && has shipped; then
+              # The ship: the facilitator added `shipped` and then closed. Retire the in-work labels.
+              clear_in_work
+            elif [ "$REASON" = COMPLETED ] && { has implementing || has staging; }; then
+              # Nobody shipped this: a merged pull request closed an issue that is still in work.
+              # Put it back and leave its labels alone. A reopen by this job's own GITHUB_TOKEN
+              # raises no workflow event, so this cannot loop.
+              gh issue reopen "$NUMBER" --repo "$REPO" --comment \
+                "Reopened by the harness: a pull request merge closed this issue, but it is not in production yet. It closes at ship time."
+            else
+              # Not planned, duplicate, or a stale issue nobody ever worked on: just tidy the labels.
+              clear_in_work
             fi
-            for label in implementing staging; do
-              if has "$label"; then edit --remove-label "$label"; fi
-            done
           else
             if has shipped; then edit --remove-label shipped; fi
             if ! has implementing && ! has staging && taken; then edit --add-label implementing; fi
