@@ -58,7 +58,7 @@ gh issue view <n> --repo $REPO --json title,body,labels
 
 Print `Start: $(date +%H:%M)`, then the path:
 
-- Labels include `feature-request` (the request form's five sections: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role) → `Path: request`. Steps 2, 2b, 3, 4 (only when the labels also include `arch-change`), 5, 7, 8, 9, 10.
+- Labels include `feature-request` (the request form's six sections: Problem, Proposed behavior, Acceptance criteria, Out of scope, Looks or mockup — optional — and Your role) → `Path: request`. Steps 2, 2b, 3, 4 (only when the labels also include `arch-change`), 5, 7, 8, 9, 10.
 - Labels include `bug` (the bug form's five sections: What happened, What you expected, Steps to reproduce, Where, Your role) → `Path: bug`. Steps 2, 6, 7, 8, 9, 10. An issue carrying both labels is a bug.
 - Neither label, or both: print the sections the body actually has and ask the facilitator which path, then follow the answer.
 

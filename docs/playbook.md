@@ -11,7 +11,7 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 ## 2. The room files requests (minute 8)
 
 - **TYPE** put on screen: https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new/choose
-- **SEE** the two forms, Feature request and Bug report; the request form's five fields: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role
+- **SEE** the two forms, Feature request and Bug report; the request form's six fields: Problem, Proposed behavior, Acceptance criteria, Out of scope, Looks or mockup (optional), Your role
 - **SAY** "Acceptance criteria decide the ranking. Something broken? Use the bug form instead."
 
 ## 3. The in-app interview (same segment)

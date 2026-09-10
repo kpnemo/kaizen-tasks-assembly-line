@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Validates the issue forms in .github/ISSUE_TEMPLATE/: each parses as YAML, carries its expected name and
-// label, and has exactly its five fields in order, with the required ones required and the right field types.
+// label, and has exactly its expected fields in order (six for the request form, five for the bug form),
+// with the required ones required and the right field types.
 import { readFileSync } from "node:fs";
 import { parse } from "yaml";
 
@@ -9,7 +10,7 @@ const forms = [
     file: "feature-request.yml",
     name: "Feature request",
     label: "feature-request",
-    expectedIds: ["problem", "behavior", "acceptance", "out_of_scope", "role"],
+    expectedIds: ["problem", "behavior", "acceptance", "out_of_scope", "looks", "role"],
     requiredIds: ["problem", "behavior", "acceptance"],
     inputIds: ["role"],
   },
