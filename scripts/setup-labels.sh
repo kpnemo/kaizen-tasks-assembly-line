@@ -39,7 +39,7 @@ done
 
 label arch-change B60205 "Implies an architecture change; sorts after every other request"
 label triaged D4C5F9 "Scored by triage-requests"
-label implementing 9B6FE0 "implement-issue has opened pull requests"
+label implementing 9B6FE0 "implement-issue has taken the issue into work"
 label shipped 5319E7 "Merged to main and live in production"
 label triage-board FBCA04 "The pinned Triage board issue; carried by exactly one issue"
 

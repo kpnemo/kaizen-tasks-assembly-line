@@ -10,9 +10,9 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 
 ## 2. The room files requests (minute 8)
 
-- **TYPE** put on screen: https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new?template=feature-request.yml
-- **SEE** the five fields: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role
-- **SAY** "Acceptance criteria decide the ranking. Write for a tester, not for a developer."
+- **TYPE** put on screen: https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new/choose
+- **SEE** the two forms, Feature request and Bug report; the request form's five fields: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role
+- **SAY** "Acceptance criteria decide the ranking. Something broken? Use the bug form instead."
 
 ## 3. The in-app interview (same segment)
 
@@ -33,8 +33,8 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 
 ## 5. Choose the issue (end of triage)
 
-- **TYPE** answer the skill's question on screen: pick one of the three offered issues
-- **SEE** the top three by readiness, the recommended one first; then `Chosen: #<n>` and the next command
+- **TYPE** answer the skill's question on screen: pick one of the offered issues, or name any other number
+- **SEE** up to three non-architecture requests by readiness, the recommended one first; then `Chosen: #<n>` and the next command
 - **SAY** "The agent ranks. A person chooses. It never picks its own work."
 
 ## 6. Implement (minute 30)
@@ -45,13 +45,13 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 /implement-issue <the number you chose>
 ```
 
-- **SEE** the issue take the `implementing` label and an assignee, the issue showing the two branches under Development, and the Triage board status change
+- **SEE** the issue take the `implementing` label and an assignee, the branches for the affected repos under Development (or their names in the comment when linking is refused), and that issue's row on the board flip to `implementing`
 - **SAY** "It takes the issue into work first, so the board is honest while it runs."
 
 ## 7. The interview, the approach, the spec, the plan
 
-- **TYPE** answer three or four questions, then one yes to the approach and spec, one yes to the plan
-- **SEE** questions about the request (who, where, edges, what stays untouched), then the spec and plan files under `docs/superpowers/`
+- **TYPE** answer up to four questions (or "use the issue text"), then one yes to the design, one yes to the plan
+- **SEE** questions about the request (who, where, edges, what stays untouched), the approaches with a recommendation, then the spec and plan files under `docs/superpowers/`
 - **SAY** "It asks the product owner, not the engineer, and only what changes what gets built."
 
 ## 8. The failing test, the docs gate, the pull requests
@@ -65,10 +65,13 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 - **TYPE**
 
 ```
-gh pr checks <pr url> --watch && gh pr merge <pr url> --squash --delete-branch
+gh pr checks <api pr url> --watch && gh pr merge <api pr url> --squash --delete-branch
+gh pr checks <web pr url> --watch && gh pr merge <web pr url> --squash --delete-branch
+gh pr checks <docs pr url> --watch && gh pr merge <docs pr url> --squash --delete-branch
+railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'
 ```
 
-- **SEE** green checks, the merge, then Railway staging `WAITING` while CI runs, then building
+- **SEE** green checks, the three merges (API first, docs last), then Railway staging `WAITING` while CI runs, then building
 - **SAY** "Railway already has the commit. It waits for GitHub to say the checks passed."
 
 ## 10. Cut the release in both app repos
@@ -78,10 +81,16 @@ gh pr checks <pr url> --watch && gh pr merge <pr url> --squash --delete-branch
 ```
 git -C backend push -u origin release/<version> && gh pr create --repo kpnemo/kaizen-tasks-api --base develop --head release/<version> --title "chore: release <version>" --body "Cut <version>"
 git -C frontend push -u origin release/<version> && gh pr create --repo kpnemo/kaizen-tasks-web --base develop --head release/<version> --title "chore: release <version>" --body "Cut <version>"
+gh pr checks <api release pr url> --watch && gh pr merge <api release pr url> --merge
+gh pr checks <web release pr url> --watch && gh pr merge <web release pr url> --merge
 scripts/check-versions.sh
+railway deployment list --service api --environment staging --limit 1 --json | jq '.[0].status'
+railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'
+curl -fsS https://web-staging-52c0.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'
+curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'
 ```
 
-- **SEE** `versions match: <version>`, then both staging deployments `SUCCESS`
+- **SEE** `versions match: <version>`, both staging deployments `SUCCESS`, and staging reporting the new version and commit
 - **SAY** "Both halves carry the same number. The footer will prove it."
 
 ## 11. Promote to production
@@ -90,10 +99,12 @@ scripts/check-versions.sh
 
 ```
 gh pr create --repo kpnemo/kaizen-tasks-api --base main --head develop --title "release: <version>" --body "Promote develop to main"
+gh pr checks <api promote pr url> --watch && gh pr merge <api promote pr url> --merge
 gh pr create --repo kpnemo/kaizen-tasks-web --base main --head develop --title "release: <version>" --body "Promote develop to main"
+gh pr checks <web promote pr url> --watch && gh pr merge <web promote pr url> --merge
 ```
 
-- **SEE** the `promote` job running the Playwright smoke against staging, step by step, then the merges
+- **SEE** the `promote` job running the Playwright smoke against staging, step by step, then the two merges, API first
 - **SAY** "A browser is doing your acceptance test right now. Only then may main merge."
 
 ## 12. Production and the issue
@@ -101,12 +112,16 @@ gh pr create --repo kpnemo/kaizen-tasks-web --base main --head develop --title "
 - **TYPE**
 
 ```
+curl -fsS https://web-production-7ef71.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'
 curl -fsS https://web-production-7ef71.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'
-gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state --jq .state
+gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state --jq .state   # expect CLOSED
 gh issue edit <n> --repo kpnemo/kaizen-tasks-assembly-line --add-label shipped --remove-label implementing
+gh issue comment <n> --repo kpnemo/kaizen-tasks-assembly-line --body "Shipped in <promotion pr url>; production serves <version>."
+# only if the state above is OPEN:
+gh issue close <n> --repo kpnemo/kaizen-tasks-assembly-line --comment "Shipped in <promotion pr url>"
 ```
 
-- **SEE** the new version and commit, the feature on production, the footer's new version, and the issue `CLOSED` with a last line: shipped in the promotion pull request
+- **SEE** the new version and commit on both halves, the feature on production, the footer's new version, and the issue `CLOSED` with the shipped comment as its last line
 - **SAY** "Your idea, your criteria, in production, with the tests and gates that got it there."
 
 ## If it breaks
@@ -124,6 +139,6 @@ gh issue edit <n> --repo kpnemo/kaizen-tasks-assembly-line --add-label shipped -
 
 - Interview turn: 7 to 15 seconds. Past 15 with nothing on screen, use the escape hatch.
 - Interview limit: 60 turns per user per hour (`INTERVIEW_HOURLY_LIMIT`); breakdowns 20 per user per hour, session budget `AI_GLOBAL_LIMIT_PER_HOUR=600`.
-- Part 1 cutoff: minute 70. State what is incomplete and move to Part 2.
+- Part 1 cutoff: minute 70. Name the live steps still running and stop driving them; minutes 70 to 75 are buffer and questions; Part 2 starts at minute 75.
 - Implement time box: the skill stops itself 25 minutes after it starts.
 - Staging https://web-staging-52c0.up.railway.app, production https://web-production-7ef71.up.railway.app.

@@ -35,13 +35,13 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 
 The issue is the story the room follows, so every milestone lands on it as one short comment, in this fixed shape and nothing more (no transcripts, no diffs):
 
-| When                                         | Comment                                                                                                                                                            |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Step 2, decision time                        | `Taken into work: implementing through /implement-issue <n>. Branches: <repo> feat/<n>-<slug>, ... Pull requests will reference this issue and close it on merge.` |
-| Step 5, after the interview                  | `Interview done: <k> questions; approach chosen: <one line>.`                                                                                                      |
-| Step 5, after the spec and plan are approved | `Spec and plan approved: <spec path>, <plan path> on feat/<n>-<slug>. Docs pull request: <url>.`                                                                   |
-| Step 8, as each pull request opens           | `Pull request opened: <url>`                                                                                                                                       |
-| Runbook Ship, after the promotion            | `Shipped in <promotion pr url>; production serves <version>.` (the facilitator, not this skill)                                                                    |
+| When                                         | Comment                                                                                                                                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Step 2, decision time                        | `Taken into work: implementing through /implement-issue <n>. Branches: <affected repo> feat/<n>-<slug>[, <other repo> ...]. Pull requests will reference this issue and close it on merge.` |
+| Step 5, after the interview                  | `Interview done: <k> questions; approach chosen: <one line>.`                                                                                                                               |
+| Step 5, after the spec and plan are approved | `Spec and plan approved: <spec path>, <plan path> on feat/<n>-<slug>.`                                                                                                                      |
+| Step 8, as each pull request opens           | `Pull request opened: <url>` (once per pull request, the docs one included)                                                                                                                 |
+| Runbook Ship, after the promotion            | `Shipped in <promotion pr url>; production serves <version>.` (the facilitator, not this skill)                                                                                             |
 
 These are new comments. Never edit or reuse the triage comment, which is upserted by its marker `<!-- kaizen-triage -->`.
 
@@ -53,8 +53,8 @@ gh issue view <n> --repo $REPO --json title,body,labels
 
 Print `Start: $(date +%H:%M)`, then the path:
 
-- Labels include `feature-request` (the request form's five sections: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role) → `Path: request`. Steps 3, 5, 7, 8.
-- Labels include `bug` (the bug form's five sections: What happened, What you expected, Steps to reproduce, Where, Your role) → `Path: bug`. Steps 6, 7, 8.
+- Labels include `feature-request` (the request form's five sections: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role) → `Path: request`. Steps 2, 3, 4 (only when the labels also include `arch-change`), 5, 7, 8, 9, 10.
+- Labels include `bug` (the bug form's five sections: What happened, What you expected, Steps to reproduce, Where, Your role) → `Path: bug`. Steps 2, 6, 7, 8, 9, 10. An issue carrying both labels is a bug.
 - Neither label, or both: print the sections the body actually has and ask the facilitator which path, then follow the answer.
 
 ## Step 2: Take the issue into work
@@ -88,8 +88,21 @@ If the mutation fails (the branch already exists from an earlier run, or the API
 Then the first milestone comment, naming the branches that now exist:
 
 ```bash
-gh issue comment <n> --repo $REPO --body "Taken into work: implementing through /implement-issue <n>. Branches: kaizen-tasks-api feat/<n>-<slug>, kaizen-tasks-web feat/<n>-<slug>. Pull requests will reference this issue and close it on merge."
+gh issue comment <n> --repo $REPO --body "Taken into work: implementing through /implement-issue <n>. Branches: kaizen-tasks-api feat/<n>-<slug>. Pull requests will reference this issue and close it on merge."
 ```
+
+Name only the repositories you actually branched: one for one repo, both when the request touches both. If a later step pulls in the other repo, branch it then and say so in that step's comment.
+
+Then flip this issue's row on the Triage board, so the board and the labels agree from this moment:
+
+```bash
+board=$(gh issue list --repo $REPO --label triage-board --state open --json number --jq '.[0].number // empty')
+gh issue view "$board" --repo $REPO --json body --jq .body > /tmp/board.md
+# edit exactly one cell: on the row whose Issue column is #<n>, Status triaged -> implementing
+gh issue edit "$board" --repo $REPO --body-file /tmp/board.md
+```
+
+One cell, nothing else: no re-ranking, no new rows, no touch to the `Last run` line. If the issue has no row (it was filed after the last triage run), leave the board alone and say so; the next `/triage-requests` picks it up.
 
 ## Step 3: Restate the acceptance criteria (request path)
 
@@ -108,12 +121,21 @@ Resume from Step 5 only when told to continue.
 
 ## Step 5: Brainstorm, spec, plan (request path)
 
-Invoke `superpowers:brainstorming` and follow it, with these constraints:
+First, in this workspace repo, so every commit the next two skills make lands on the branch Step 8 pushes:
+
+```bash
+git fetch origin develop
+git switch -c feat/<n>-<slug> origin/develop 2>/dev/null || git switch feat/<n>-<slug>
+```
+
+Then invoke `superpowers:brainstorming` and follow it, with these constraints:
 
 - The person interviewed is the product owner in the room, never an engineer. The subject is the REQUEST, never the implementation.
-- At most four questions, one per turn, with the options drawn from the issue text. Skip every question the issue already answers; if it answers all four, say so and go straight to the approaches.
+- Zero to four questions, one per turn, with the options drawn from the issue text. Skip every question the issue already answers; if it answers all four, say so and go straight to the approaches with no questions at all.
 - Ask only what changes what gets built: who it is for, where in the UI it appears, what happens at the edge, what stays untouched. Never ask which library, which file, or which pattern.
-- Take its architectural path, so it produces two or three approaches with trade-offs and a recommendation (an answer is required before the spec) and then a written spec.
+- Take its architectural path, but present the whole design as **one** section and take **one** yes; never ask for an approval per section. Two or three approaches with trade-offs and a recommendation come first, and they need an answer before the spec.
+- Do not offer the visual companion, and do not run `superpowers:using-git-worktrees`.
+- Escape hatch: the facilitator may answer `use the issue text` to any question. Accept it, ask nothing further, and continue with what the issue already says.
 - Write the spec to the constant path above. Sections: what, who, behavior, acceptance criteria restated as tests, out of scope, the repos and files touched.
 - The facilitator's yes on the spec is the gate. No plan before it.
 
@@ -139,6 +161,13 @@ gh issue comment <n> --repo $REPO --body "Spec and plan approved: <spec path>, <
 Then Step 7.
 
 ## Step 6: Bug path
+
+Check out the working branch before anything can write a fix (Step 2 created it on GitHub; this creates it locally if that failed):
+
+```bash
+git -C <backend|frontend> fetch origin
+git -C <backend|frontend> switch feat/<n>-<slug> 2>/dev/null || git -C <backend|frontend> switch -c feat/<n>-<slug> origin/develop
+```
 
 Restate, in the reporter's words: expected behavior, actual behavior, and the reproduction steps as a numbered list; under them, the test that will capture the bug. If the steps do not reproduce, say so and ask the reporter one question. Do not guess.
 
@@ -180,7 +209,9 @@ npm run docs:check                                # the CI form of the docs gate
 
 Every command must exit 0. The docs gate runs after the commit because it reads the committed diff; if it fails, fix the docs and amend the commit.
 
-Do not run `superpowers:finishing-a-development-branch`. Its menu offers integration choices; here the skill opens pull requests and stops, and the facilitator merges (`docs/runbook.md`).
+Do not run `superpowers:using-git-worktrees`. The isolated workspaces are the `feat/<n>-<slug>` branches created at Step 2 inside `backend/` and `frontend/` (and at Step 5 here, for the docs); a worktree of this repository would hold neither app repo, because both are git-ignored here. When `executing-plans` or `subagent-driven-development` asks for a worktree, say the branch is it and carry on.
+
+Do not run `superpowers:finishing-a-development-branch` either. Its menu offers integration choices; here the skill opens pull requests and stops, and the facilitator merges (`docs/runbook.md`).
 
 Time box: check the clock at each step boundary against the `Start:` printed in Step 1. At 25 minutes, if Step 8 has not begun, stop and report what is done, what remains, which branch holds the commits, and the exact next command.
 
@@ -228,9 +259,9 @@ Docs-check: `<the last line of npm run docs:check>`
 Then, on the request path, the spec and the plan in this workspace repo, as a third, docs-only pull request:
 
 ```bash
-git switch -c feat/<n>-<slug> origin/develop 2>/dev/null || git switch feat/<n>-<slug>
+git switch feat/<n>-<slug>                                   # created at Step 5; brainstorming and writing-plans committed onto it
 git add docs/superpowers/specs/<file> docs/superpowers/plans/<file>
-git commit -m "docs: spec and plan for #<n>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+git commit -m "docs: spec and plan for #<n>" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"   # only if anything is still uncommitted
 git push -u origin feat/<n>-<slug>
 gh pr create --repo $REPO --base develop --head feat/<n>-<slug> \
   --title "docs: spec and plan for #<n>" --body "Spec and plan for #<n>. Docs only."
@@ -246,7 +277,14 @@ Print the pull request URLs. The API pull request is listed first, the docs one 
 
 ## Step 9: Check the issue timeline
 
-Open the issue and read it top to bottom. It must show, in order: the triage comment, `Taken into work` with the branches, `Interview done`, `Spec and plan approved`, one `Pull request opened` per repo, the branches under Development, the label `implementing` and the assignee. Anything missing gets its comment now; the room reads the journey here, not in the terminal. `shipped` and the final comment come later, from the runbook's Ship block.
+Open the issue and read it top to bottom against the path you took.
+
+- Both paths: `Taken into work` with the branches, one `Pull request opened` per pull request, the label `implementing`, the assignee.
+- Request path only: `Interview done`, `Spec and plan approved`, and the docs pull request among the `Pull request opened` lines.
+- Bug path: none of those three, by design. There is no spec, no plan and no docs pull request to link, and a bug carries no triage comment because bugs are never scored.
+- Linked branches under Development only when Step 2's mutation succeeded. The documented fallback (local branches, named in the take-into-work comment) is a pass, not a gap.
+
+Post any comment genuinely missing for the path you took, and invent none. The room reads the journey here, not in the terminal. `shipped` and the final comment come later, from the runbook's Ship block.
 
 ## Step 10: Stop
 
