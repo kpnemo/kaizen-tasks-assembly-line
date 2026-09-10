@@ -164,7 +164,7 @@ then open the Triage board and flip that issue's row, Status `implementing` (or 
 - Interview turn: 7 to 15 seconds. Past 15 with nothing on screen, use the escape hatch.
 - Interview limit: 60 turns per user per hour (`INTERVIEW_HOURLY_LIMIT`); breakdowns 20 per user per hour, session budget `AI_GLOBAL_LIMIT_PER_HOUR=600`.
 - Part 1 cutoff: minute 70. Name the live steps still running and stop driving them; minutes 70 to 75 are buffer and questions; Part 2 starts at minute 75.
-- Briefing: bounded to three minutes, the code exploration inside it to about one. The product maps are built before the session, not during it.
+- Briefing: bounded to three minutes from the `Brief start:` line it prints, the code exploration inside it asked for about one. If that exploration overruns two minutes, press Esc; the briefing carries on with the maps alone. The product maps are built before the session, not during it.
 - The round: exactly one, at most four questions, every one with a recommended answer. "take your recommendations" answers all of them.
 - Implement time box: the skill stops itself 25 minutes after it starts.
 - Staging https://web-staging-52c0.up.railway.app, production https://web-production-7ef71.up.railway.app.

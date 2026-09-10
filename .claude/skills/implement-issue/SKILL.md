@@ -19,7 +19,7 @@ Constants:
 - Branch name: `feat/<n>-<slug>` where `<slug>` is the issue title lowercased, with every **run** of non-alphanumerics collapsed to a single `-`, then truncated to at most 40 characters, then trimmed of any leading or trailing `-`. Collapse the run, never one character at a time: "Add light, dark, and system theme toggle" is `add-light-dark-and-system-theme-toggle`, not `add-light--dark--and-system-theme-toggle`. Check it before you use it: `printf '%s' "<title>" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40 | sed -E 's/-+$//'`. The same branch name in every repo, this one included.
 - Briefing: `docs/superpowers/briefs/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Spec: `docs/superpowers/specs/<YYYY-MM-DD>-issue-<n>-<slug>.md`. Plan: `docs/superpowers/plans/<YYYY-MM-DD>-issue-<n>-<slug>.md`. All three in this workspace repo, all three on `feat/<n>-<slug>`.
 - Briefing scratch: `.superpowers/briefs/<n>/`, git-ignored, for downloaded attachments only. Nothing in it is ever committed.
-- Read at Step 2b: `backend/docs/product-map.md`, `frontend/docs/product-map.md`, `frontend/docs/ui-conventions.md`. Each app repo regenerates its map with `npm run product-map`; a stale map fails that repo's docs gate.
+- Read at Step 2b: `backend/docs/product-map.md`, `frontend/docs/product-map.md`, `frontend/docs/ui-conventions.md`. Each app repo regenerates its map with `npm run product-map`; a stale map fails that repo's docs gate. None of the three is a hard requirement: they arrive in the app repos by their own pull requests, so if one is missing, note it and carry on with what exists (Step 2b and Step 7).
 - Working directory: the workspace root. Run every npm command inside the nested repo after `nvm use`.
 
 ## Hard rules
@@ -82,7 +82,7 @@ The Triage board reads `implementing` from this label, so the room sees the stat
 
 Never set or remove `staging` or `shipped`. Both arrive after this skill has stopped. `.github/workflows/issue-lifecycle.yml` retires `implementing` and `staging` on that close — and puts the issue back if something closes it while it is still in work.
 
-Then create the harness branch here, in this workspace repo, before anything writes a file:
+Then, **on the request path only**, create the harness branch here, in this workspace repo, before anything writes a file:
 
 ```bash
 git fetch origin develop
@@ -90,6 +90,8 @@ git switch -c feat/<n>-<slug> origin/develop 2>/dev/null || git switch feat/<n>-
 ```
 
 This branch used to be created at Step 5. It is created here because Step 2b writes the briefing, and the briefing, the spec and the plan all belong on the branch Step 8 pushes.
+
+**The bug path never creates it**: no briefing, no spec, no plan and no docs pull request are written on a bug, so a branch here would only be an empty checkout left behind — and `/triage-requests` refuses to push its dated report when it finds this repo off `develop` (that skill's Step 9). Leave the harness checkout on `develop` for a bug.
 
 Then create the working branch in each repo the request touches, **through GitHub**, so it shows under **Development** on the issue at once. Guess the repos from the request now (schema, queue, auth, prompt, proxy: `kaizen-tasks-api`; router, client, Caddyfile: `kaizen-tasks-web`); if the spec later pulls in the other repo, run the same block for it then. Resolve every id at run time, never hardcode one:
 
@@ -130,7 +132,9 @@ One cell, nothing else: no re-ranking, no new rows, no touch to the `Last run` l
 
 ## Step 2b: Brief (request path)
 
-Read the product and the code before asking anything, so every question that survives is one the issue really does not answer. The whole step has an aggregate deadline of **three minutes** from the `Start:` clock printed in Step 1; when that runs out, write the briefing with what you have and say in it what is missing.
+Read the product and the code before asking anything, so every question that survives is one the issue really does not answer.
+
+Print `Brief start: $(date +%H:%M)` before the first read. The whole step has an aggregate deadline of **three minutes from that line**, not from Step 1's `Start:` — Step 2's label edit, branch creation, comment and board flip happen in between and are not part of the briefing's budget. When the three minutes run out, write the briefing with what you have and say in it what is missing. The 25-minute time box still counts from `Start:`.
 
 Read, in this order:
 
@@ -144,8 +148,10 @@ gh issue view <n> --repo $REPO --json comments \
 
 The triage comment (marker `<!-- kaizen-triage -->`) carries the scores and the clarity questions. Every **later** comment from the requester or the facilitator is a decision: it overrides anything earlier that contradicts it, the issue body included. No triage comment is not a blocker — record `triage: not run` and carry on.
 
-3. `backend/docs/product-map.md` and `frontend/docs/product-map.md`: what the product does today, its endpoints, its tables, its routes and screens. Each app repo keeps its map fresh with `npm run product-map`, and its docs gate fails if it is stale, so the maps can be trusted as of this checkout.
+3. `backend/docs/product-map.md` and `frontend/docs/product-map.md`: what the product does today, its endpoints, its tables, its routes and screens. Each app repo keeps its map fresh with `npm run product-map`, and its docs gate fails if it is stale, so a map that is there can be trusted as of this checkout.
 4. `frontend/docs/ui-conventions.md`: the vocabulary the design question is drawn from.
+
+A missing file is not a stop. These land in the app repos by their own pull requests, so before the merge one or both may simply not exist: write `product map: missing in <repo>` (or `ui conventions: missing`) in the briefing, lean harder on the exploration, and carry on. Draw the design question's options from the existing header controls instead.
 
 ### Attachments
 
@@ -167,7 +173,7 @@ Dispatch **one** read-only Explore subagent, breadth `medium`. Its prompt carrie
 3. anything that already exists which the request may be asking for;
 4. anything standing in the way.
 
-Say in the prompt: **answer in under 25 lines, and you have about 60 seconds**. One subagent, never two, and no follow-up dispatch. If it has not reported after 90 seconds, carry on with the maps alone and list what stayed unknown under **Unknowns** in the briefing. Do not wait for it a second time.
+Say in the prompt: **answer in under 25 lines, and you have about 60 seconds**. One subagent, never two, and no follow-up dispatch. **Wait for its result**: the skill cannot time itself out of a subagent it is waiting on, so the budget lives in the prompt, not in a stopwatch here. The facilitator is the escape hatch — if the exploration runs past two minutes they press Esc, and the skill then continues on the maps alone and writes `exploration: skipped` under **Unknowns** in the briefing. Never dispatch it again.
 
 ### Classify
 
@@ -299,10 +305,12 @@ Gates after the round, and only these: the `arch-change` confirmation at Step 4 
 When the briefing says `UI: visible`, exactly one design question, through AskUserQuestion, the **recommended option first**:
 
 - Two or three options, drawn from `frontend/docs/ui-conventions.md` and the header controls the web product map inventories — a group of `Button` variants with `aria-pressed` and a lucide icon each, an entry in the existing dropdown menu, a `NativeSelect` only past eight options.
-- Every option's description carries a **small text mockup** of what it looks like, so the room sees the choice instead of reading about it:
+- The **small text mockup** of each option goes in that option's `preview` field, never in `description`. Only `preview` renders side by side, which is what lets the room compare the looks; `description` is a truncated one-liner and would swallow the sketch. So: `label` names it, `description` says where it sits in one short line, `preview` holds the mockup.
 
 ```
-[ ☀ Light | ☾ Dark | ▣ System ]     in the header, left of the account menu
+label:       Segmented control
+description: In the header, left of the account menu
+preview:     [ ☀ Light | ☾ Dark | ▣ System ]
 ```
 
 - The options are what the user sees, never how it is built. Never ask which component file, which library, which prop.
@@ -394,7 +402,7 @@ Then, in each affected repo, after `nvm use`:
 
 ```bash
 npm run openapi                                   # backend only, when the contract changed; it feeds the map, so it runs first
-npm run product-map                               # regenerates docs/product-map.md from this checkout
+npm run product-map                               # regenerates docs/product-map.md; skip with one line if the repo has no such script yet
 npm test
 npm run typecheck
 npm run lint
@@ -404,7 +412,7 @@ BASE_SHA=$(git merge-base origin/develop HEAD) bash scripts/docs-check.sh --ci  
 
 Every command must exit 0, and the docs gate must print `docs-check: OK` on its last line.
 
-`npm run product-map` comes before the checks and before the commit for a reason: the docs gate regenerates the map on every run and compares it with the committed one, so a map that was not rebuilt fails the gate — and the map is what the next `/implement-issue` reads at Step 2b instead of guessing at the product. It is deterministic: on an unchanged tree it rewrites the same bytes and `git status` stays clean.
+If `npm run product-map` is not a script in that repo yet, say so in one line (`product-map: no such script in <repo>, skipped`) and run the rest; do not stop and do not invent the script. Where it does exist, it comes before the checks and before the commit for a reason: the docs gate regenerates the map on every run and compares it with the committed one, so a map that was not rebuilt fails the gate — and the map is what the next `/implement-issue` reads at Step 2b instead of guessing at the product. It is deterministic: on an unchanged tree it rewrites the same bytes and `git status` stays clean.
 
 Two traps in that last command, both of which cost time in the 2026-09-10 dry run:
 
@@ -413,7 +421,7 @@ Two traps in that last command, both of which cost time in the 2026-09-10 dry ru
 
 The gate runs after the commit because it reads the committed diff; if it fails, fix the docs and amend the commit.
 
-Do not run `superpowers:using-git-worktrees`. The isolated workspaces are the `feat/<n>-<slug>` branches created at Step 2 inside `backend/` and `frontend/` (and, at the same step, here, for the docs); a worktree of this repository would hold neither app repo, because both are git-ignored here. When `executing-plans` or `subagent-driven-development` asks for a worktree, say the branch is it and carry on.
+Do not run `superpowers:using-git-worktrees`. The isolated workspaces are the `feat/<n>-<slug>` branches created at Step 2 inside `backend/` and `frontend/` (and, at the same step, here, for the docs — on the request path only); a worktree of this repository would hold neither app repo, because both are git-ignored here. When `executing-plans` or `subagent-driven-development` asks for a worktree, say the branch is it and carry on.
 
 Do not run `superpowers:finishing-a-development-branch` either. Its menu offers integration choices; here the skill opens pull requests and stops, and the facilitator merges (`docs/runbook.md`).
 
