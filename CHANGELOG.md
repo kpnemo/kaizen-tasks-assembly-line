@@ -8,6 +8,7 @@ All notable changes to this repository are documented here. The format follows
 
 ### Added
 
+- `.github/workflows/issue-lifecycle.yml`: the labels follow the issue state. Closing an issue as completed removes `implementing` and adds `shipped`; closing it as not planned or duplicate removes `implementing` and adds nothing; reopening removes `shipped` and restores `implementing` when the issue had been taken into work. Removals are attempted only when the payload shows the label, so a missing label never fails the job, and the workflow posts no comments.
 - Bug intake: `.github/ISSUE_TEMPLATE/bug-report.yml` (What happened, What you expected, Steps to reproduce, Where, Your role; label `bug`), the `bug` label in `scripts/setup-labels.sh`, a contact link in `.github/ISSUE_TEMPLATE/config.yml`, and `scripts/check-issue-form.mjs` extended to validate both forms.
 - `docs/playbook.md`: the one-page second-screen cheat sheet for Part 1, each step as type, see, say, with an "If it breaks" block and the numbers to keep in mind.
 - Facilitator runbook (`docs/runbook.md`): pre-session checklists, the Part 1 minute-by-minute table, gate scripts, a failure page, rollback, and the Part 2/3 handoffs.
