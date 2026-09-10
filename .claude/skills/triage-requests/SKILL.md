@@ -30,6 +30,8 @@ Constants:
 
 Read `rubric/readiness.md` in full. Print `Rubric version: <n>` from its front matter. Follow its procedure section literally for every score: clarity from the acceptance criteria alone, complexity and risk by naming files or areas, the architecture change test, the formula, questions only when clarity is below 3.
 
+The request form has six fields, so a fetched body may carry a `Looks or mockup` section (optional, and it may hold an image rather than words): read it as context for complexity and risk, but never let it move clarity — clarity still comes from the acceptance criteria alone, exactly as the rubric says. `/implement-issue` is what uses that section, at its briefing step.
+
 ## Step 2: Score-only mode
 
 Applies when `--score-only` is given. No writes of any kind: no labels, no comments, no report, no commit, no push, no question.

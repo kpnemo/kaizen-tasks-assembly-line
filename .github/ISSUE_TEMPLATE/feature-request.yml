@@ -39,6 +39,14 @@ body:
       description: What this request deliberately does not include
     validations:
       required: false
+  - type: textarea
+    id: looks
+    attributes:
+      label: Looks or mockup (optional)
+      description: Where it appears and how it should look; paste an image if you have one
+      placeholder: Paste a screenshot or sketch, or say where it appears and how it should look.
+    validations:
+      required: false
   - type: input
     id: role
     attributes:

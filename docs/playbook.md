@@ -11,7 +11,7 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 ## 2. The room files requests (minute 8)
 
 - **TYPE** put on screen: https://github.com/kpnemo/kaizen-tasks-assembly-line/issues/new/choose
-- **SEE** the two forms, Feature request and Bug report; the request form's five fields: Problem, Proposed behavior, Acceptance criteria, Out of scope, Your role
+- **SEE** the two forms, Feature request and Bug report; the request form's six fields: Problem, Proposed behavior, Acceptance criteria, Out of scope, Looks or mockup (optional), Your role
 - **SAY** "Acceptance criteria decide the ranking. Something broken? Use the bug form instead."
 
 ## 3. The in-app interview (same segment)
@@ -46,18 +46,22 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 ```
 
 - **SEE** the issue take the `implementing` label and an assignee, the branches for the affected repos under Development (or their names in the comment when linking is refused), and that issue's row on the board flip to `implementing`
-- **SAY** "It takes the issue into work first, so the board is honest while it runs."
+- **SEE** then the briefing, under three minutes: both product maps read, the whole issue thread, any attached mockup opened, one pass over the code, and on the issue a new comment `Context gathered: touches <areas>; today <one line>; open questions: <k>.`
+- **SAY** "It takes the issue into work first, so the board is honest while it runs. Then it reads the product and the code before it asks you anything."
 
-## 7. The interview, the approach, the spec, the plan
+## 7. One round, the design, the approach, the spec, the plan
 
-- **TYPE** answer up to four questions (or "use the issue text"), then one yes to the design, one yes to the plan
-- **SEE** questions about the request (who, where, edges, what stays untouched), the approaches with a recommendation, then the spec and plan files under `docs/superpowers/`
-- **SAY** "It asks the product owner, not the engineer, and only what changes what gets built."
+- **TYPE** answer the round in one message, or say "take your recommendations" (takes every one, rewordings included, so the run always carries on), or say "use the issue text" (ends the questioning too, but may leave one untestable criterion to answer); pick the design option when it appears; then one yes to the design, one yes to the plan
+- **SEE** **one** round of at most four numbered questions, each with the agent's own recommended answer under it (blockers first: any acceptance criterion that cannot be turned into a test, with a testable rewording offered); no second round
+- **SEE** when the request changes something visible, the design question as option cards with a small mockup in each, the recommended one first — or, when your request already said how it should look, that design shown back for a yes instead of a menu
+- **SEE** then the approaches with a recommendation, and the briefing, spec and plan files under `docs/superpowers/`; the spec's `Looks` section says the control, the icons, the placement and both themes
+- **SEE** on the issue: `Interview done: <k> questions, <r> recommendations taken; approach chosen: <one line>.`
+- **SAY** "It read the product and the code before asking; every question left is one the issue really does not answer. And each one comes with the answer it would give, so I can just take them."
 
 ## 8. The failing test, the docs gate, the pull requests
 
 - **TYPE** nothing; narrate
-- **SEE** the red test output before any implementation, then green, then the docs gate, then the pull request URLs (API first, docs last); on the issue the timeline reads: taken into work → interview done → spec and plan approved → pull requests
+- **SEE** the red test output before any implementation, then green, then the docs gate, then the pull request URLs (API first, docs last); on the issue the timeline reads: taken into work → context gathered → interview done → spec and plan approved → pull requests
 - **SAY** "The failure is the specification. When it passes, your criterion is met exactly."
 
 ## 9. Merge to develop (minute 60)
@@ -143,22 +147,24 @@ then open the Triage board and flip that issue's row, Status `implementing` (or 
 
 ## If it breaks
 
-| Symptom                                                    | Recovery in one line                                                                                                   |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| The in-app assistant is slow or toasts                     | Click "Skip the interview, fill the form" and keep going with the plain form.                                          |
-| The brainstorming interview stalls or asks something silly | Answer "use the issue text"; the skill accepts that and moves to the approaches.                                       |
-| CI red on `develop`                                        | Open the failing job's log on screen, fix forward if it is one line, otherwise move on and say so.                     |
-| `promote` red on the smoke                                 | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote.              |
-| Railway slow (`BUILDING` past five minutes)                | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.                          |
-| A bug report was filed instead of a request                | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                                  |
-| `implementing` or `staging` is still there after the wait  | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later.              |
-| The issue reopened itself, "Reopened by the harness"       | Before the read-back: a merge closed it, correct, leave it open and keep promoting. After: add `shipped`, close again. |
-| `staging` never arrives after both halves are on staging   | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.                         |
+| Symptom                                                   | Recovery in one line                                                                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The in-app assistant is slow or toasts                    | Click "Skip the interview, fill the form" and keep going with the plain form.                                                                                                   |
+| The round stalls or asks something silly                  | Answer "take your recommendations" — it takes the rewordings too, so it always moves on. "use the issue text" also ends the questioning, but can leave one criterion to answer. |
+| CI red on `develop`                                       | Open the failing job's log on screen, fix forward if it is one line, otherwise move on and say so.                                                                              |
+| `promote` red on the smoke                                | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote.                                                                       |
+| Railway slow (`BUILDING` past five minutes)               | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.                                                                                   |
+| A bug report was filed instead of a request               | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                                                                                           |
+| `implementing` or `staging` is still there after the wait | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later.                                                                       |
+| The issue reopened itself, "Reopened by the harness"      | Before the read-back: a merge closed it, correct, leave it open and keep promoting. After: add `shipped`, close again.                                                          |
+| `staging` never arrives after both halves are on staging  | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.                                                                                  |
 
 ## Numbers to keep in mind
 
 - Interview turn: 7 to 15 seconds. Past 15 with nothing on screen, use the escape hatch.
 - Interview limit: 60 turns per user per hour (`INTERVIEW_HOURLY_LIMIT`); breakdowns 20 per user per hour, session budget `AI_GLOBAL_LIMIT_PER_HOUR=600`.
 - Part 1 cutoff: minute 70. Name the live steps still running and stop driving them; minutes 70 to 75 are buffer and questions; Part 2 starts at minute 75.
+- Briefing: bounded to three minutes from the `Brief start:` line it prints, the code exploration inside it asked for about one. If that exploration overruns two minutes, press Esc; the briefing carries on with the maps alone. The product maps are built before the session, not during it.
+- The round: exactly one, at most four questions, every one with a recommended answer. "take your recommendations" answers all of them.
 - Implement time box: the skill stops itself 25 minutes after it starts.
 - Staging https://web-staging-52c0.up.railway.app, production https://web-production-7ef71.up.railway.app.
