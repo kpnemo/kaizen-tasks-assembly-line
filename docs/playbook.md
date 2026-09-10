@@ -69,10 +69,12 @@ gh pr checks <api pr url> --watch && gh pr merge <api pr url> --squash --delete-
 gh pr checks <web pr url> --watch && gh pr merge <web pr url> --squash --delete-branch
 gh pr checks <docs pr url> --watch && gh pr merge <docs pr url> --squash --delete-branch
 railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'
+gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json labels --jq '[.labels[].name] | join(",")'
 ```
 
 - **SEE** green checks, the three merges (API first, docs last), then Railway staging `WAITING` while CI runs, then building
-- **SAY** "Railway already has the commit. It waits for GitHub to say the checks passed."
+- **SEE** once both halves are live on staging: one `Deployed to staging` comment per half on the issue, and `staging` where `implementing` was
+- **SAY** "Railway already has the commit. It waits for GitHub to say the checks passed. The issue moved to `staging` on its own."
 
 ## 10. Cut the release in both app repos
 
@@ -99,12 +101,14 @@ curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r '.version
 
 ```
 gh pr create --repo kpnemo/kaizen-tasks-api --base main --head develop --title "release: <version>" --body "Promote develop to main"
+until [ "$(gh pr view <api promote pr url> --json statusCheckRollup --jq '.statusCheckRollup | length')" -ge 2 ]; do sleep 10; done
 gh pr checks <api promote pr url> --watch && gh pr merge <api promote pr url> --merge
 gh pr create --repo kpnemo/kaizen-tasks-web --base main --head develop --title "release: <version>" --body "Promote develop to main"
+until [ "$(gh pr view <web promote pr url> --json statusCheckRollup --jq '.statusCheckRollup | length')" -ge 2 ]; do sleep 10; done
 gh pr checks <web promote pr url> --watch && gh pr merge <web promote pr url> --merge
 ```
 
-- **SEE** the `promote` job running the Playwright smoke against staging, step by step, then the two merges, API first
+- **SEE** the `until` loop return within a few seconds (the checks register just after the pull request exists; without it `--watch` finds nothing and `main`'s policy refuses the merge), then the `promote` job running the Playwright smoke against staging step by step, then the two merges, API first
 - **SAY** "A browser is doing your acceptance test right now. Only then may main merge."
 
 ## 12. Production and the issue
@@ -114,16 +118,21 @@ gh pr checks <web promote pr url> --watch && gh pr merge <web promote pr url> --
 ```
 curl -fsS https://web-production-7ef71.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'
 curl -fsS https://web-production-7ef71.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'
+gh issue edit <n> --repo kpnemo/kaizen-tasks-assembly-line --add-label shipped
 gh issue close <n> --repo kpnemo/kaizen-tasks-assembly-line --reason completed \
   --comment "Shipped in api <version> (<sha>) and web <version> (<sha>): https://web-production-7ef71.up.railway.app"
-gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state,labels --jq '.state + " " + ([.labels[].name] | join(","))'
+for i in $(seq 1 9); do
+  labels=$(gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json labels --jq '[.labels[].name] | join(" ")')
+  case " $labels " in *" implementing "*|*" staging "*) sleep 10 ;; *) break ;; esac
+done
+echo "$labels"
 ```
 
-then open the Triage board and flip that issue's row, Status `implementing` → `shipped` (the one cell `/implement-issue` set when it took the issue into work)
+then open the Triage board and flip that issue's row, Status `staging` → `shipped` (the same cell `/implement-issue` set when it took the issue into work)
 
 - **SEE** the new version and commit on both halves, the feature on production, the footer's new version, and the issue `CLOSED` with the shipped comment as its last line
-- **SEE** the labels follow on their own within a few seconds: `shipped` appears and `implementing` disappears, from `.github/workflows/issue-lifecycle.yml`; reload the issue if the room misses it
-- **SAY** "No pull request closed this: merging to develop is staging. I close it after reading production back, the labels move themselves, and that is your idea, your criteria, in production."
+- **SEE** the loop return within about a minute with `shipped` on the issue and `staging` gone, retired by `.github/workflows/issue-lifecycle.yml`, not by you
+- **SAY** "Label first, then close: that is how the harness knows this close is a ship. Anything else that closes a request in work, it puts straight back. And that is your idea, your criteria, in production."
 
 ## If it breaks
 
@@ -135,7 +144,9 @@ then open the Triage board and flip that issue's row, Status `implementing` → 
 | `promote` red on the smoke                                 | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote. |
 | Railway slow (`BUILDING` past five minutes)                | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.             |
 | A bug report was filed instead of a request                | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                     |
-| The issue closed but the labels did not move               | `gh issue edit <n> --add-label shipped --remove-label implementing` and carry on; check the run later.    |
+| `implementing` or `staging` is still there after the wait  | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later. |
+| The issue reopened itself, "Reopened by the harness"       | `shipped` was not on it when it closed. Add the label, close again; if you did not close it, a merge did. |
+| `staging` never arrives after both halves are on staging   | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.            |
 
 ## Numbers to keep in mind
 
