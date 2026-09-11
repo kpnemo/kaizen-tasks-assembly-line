@@ -64,100 +64,56 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 - **SEE** the red test output before any implementation, then green, then the docs gate, then the pull request URLs (API first, docs last); on the issue the timeline reads: taken into work → context gathered → interview done → spec and plan approved → pull requests
 - **SAY** "The failure is the specification. When it passes, your criterion is met exactly."
 
-## 9. Merge to develop (minute 60)
+## 9. Deploy to staging from the Pipeline page (minute 60)
 
-- **TYPE**
+- **TYPE** open https://web-production-7ef71.up.railway.app/pipeline (signed in as the facilitator account), find the issue's row, click **Deploy to staging**, type the deploy passphrase, confirm
+- **SEE** before the click: the row at stage `Implementing`, one badge per pull request (api, web, the harness docs one), each green; the button appears only when every badge is green
+- **SEE** after: the badges turn to merged, api then web then harness; the staging card goes `deploying`, then `current` with the new commits; on the issue one `Deployed to staging` comment per half, and the row's chip moves to `Staging` (the page polls every 10 s over a 30 s cache, so allow up to forty seconds)
+- **SAY** "I am the person who merges, and I merge with a passphrase. Railway already has the commit; it waits for GitHub to say the checks passed. The issue moved to `staging` on its own."
 
-```
-gh pr checks <api pr url> --watch && gh pr merge <api pr url> --squash --delete-branch
-gh pr checks <web pr url> --watch && gh pr merge <web pr url> --squash --delete-branch
-gh pr checks <docs pr url> --watch && gh pr merge <docs pr url> --squash --delete-branch
-railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'
-gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json labels --jq '[.labels[].name] | join(",")'
-```
+## 10. Deploy to production from the Pipeline page
 
-- **SEE** green checks, the three merges (API first, docs last), then Railway staging `WAITING` while CI runs, then building
-- **SEE** once both halves are live on staging: one `Deployed to staging` comment per half on the issue, and `staging` where `implementing` was
-- **SAY** "Railway already has the commit. It waits for GitHub to say the checks passed. The issue moved to `staging` on its own."
+- **TYPE** on the same row, click **Deploy <version> to production**, type the passphrase, confirm; then click the run link that appears on the row
+- **SEE** the version on the button before you press: minor when either changelog has Added or Changed bullets, patch otherwise, one number for both halves; the confirmation names every issue that ships with it
+- **SEE** the row read `Shipping: <step>` and advance: Record the ship on the issues, Preflight, Cut release in api, Cut release in web, Merge the release pull requests, Wait for staging to serve the release, Open the promotion pull requests, Promote api, Promote web, Close the issues as shipped; inside the promotions, `promote` running the Playwright smoke against staging step by step
+- **SEE** the production card show the new version and commit for both halves, the row move to `Shipped`, and the issue `CLOSED` with the shipped comment as its last line; `implementing` and `staging` retired within a minute
+- **SAY** "One button, one workflow, in public. A browser is doing your acceptance test right now; only then may main merge. And nothing closes your request until production has read back the same hash."
 
-## 10. Cut the release in both app repos
+## 11. If the page cannot do it
 
-- **TYPE** `/release-notes` in each app repo (same version), then
-
-```
-git -C backend push -u origin release/<version> && gh pr create --repo kpnemo/kaizen-tasks-api --base develop --head release/<version> --title "chore: release <version>" --body "Cut <version>"
-git -C frontend push -u origin release/<version> && gh pr create --repo kpnemo/kaizen-tasks-web --base develop --head release/<version> --title "chore: release <version>" --body "Cut <version>"
-gh pr checks <api release pr url> --watch && gh pr merge <api release pr url> --merge
-gh pr checks <web release pr url> --watch && gh pr merge <web release pr url> --merge
-scripts/check-versions.sh
-railway deployment list --service api --environment staging --limit 1 --json | jq '.[0].status'
-railway deployment list --service web --environment staging --limit 1 --json | jq '.[0].status'
-curl -fsS https://web-staging-52c0.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'
-curl -fsS https://web-staging-52c0.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'
-```
-
-- **SEE** `versions match: <version>`, both staging deployments `SUCCESS`, and staging reporting the new version and commit
-- **SAY** "Both halves carry the same number. The footer will prove it."
-
-## 11. Promote to production
-
-- **TYPE**
-
-```
-gh pr create --repo kpnemo/kaizen-tasks-api --base main --head develop --title "release: <version>" --body "Promote develop to main"
-# both required gates must have registered before --watch means anything; bounded at 2 minutes
-wait_for_gates() {   # $1 = promotion pull request url
-  for i in $(seq 1 12); do
-    gh pr view "$1" --json statusCheckRollup \
-      --jq '[.statusCheckRollup[].name] | (index("ci") != null and index("promote") != null)' | grep -qx true && return 0
-    sleep 10
-  done
-  echo "STOP: ci and promote have not registered on $1 after 2 minutes. Do not merge; open the Actions tab."; return 1
-}
-wait_for_gates <api promote pr url> && gh pr checks <api promote pr url> --watch && gh pr merge <api promote pr url> --merge
-gh pr create --repo kpnemo/kaizen-tasks-web --base main --head develop --title "release: <version>" --body "Promote develop to main"
-wait_for_gates <web promote pr url> && gh pr checks <web promote pr url> --watch && gh pr merge <web promote pr url> --merge
-```
-
-- **SEE** `wait_for_gates` return within a few seconds once both `ci` and `promote` have registered by name (without it `--watch` finds nothing and `main`'s policy refuses the merge; counting checks is not enough, Railway's own check makes two), then the `promote` job running the Playwright smoke against staging step by step, then the two merges, API first
-- **SAY** "A browser is doing your acceptance test right now. Only then may main merge."
+- **TYPE** in T2, the dispatch from the runbook's appendix ("Appendix: the same steps from a terminal", section 2): `gh workflow run ship.yml --repo kpnemo/kaizen-tasks-assembly-line -f request_id=$(uuidgen) -f version=<version> -f issues=<n>` and the `gh run watch` line under it; only if the workflow cannot run either, the hand sequence below them
+- **SEE** the same run in Actions with the same step names, and the Pipeline page still showing it on the row: it reads the runs, not the button
+- **SAY** "The button is a convenience. The pipeline is the workflow, and the workflow does not care who started it."
 
 ## 12. Production and the issue
 
-- **TYPE**
+- **TYPE** open https://web-production-7ef71.up.railway.app and refresh; open the issue on GitHub; if anyone wants the hash spelled out:
 
 ```
 curl -fsS https://web-production-7ef71.up.railway.app/api/v1/health | jq -r '.data.version + " " + .data.commit[:7]'
 curl -fsS https://web-production-7ef71.up.railway.app/version.json | jq -r '.version + " " + .commit[:7]'
-gh issue edit <n> --repo kpnemo/kaizen-tasks-assembly-line --add-label shipped
-gh issue close <n> --repo kpnemo/kaizen-tasks-assembly-line --reason completed \
-  --comment "Shipped in api <version> (<sha>) and web <version> (<sha>): https://web-production-7ef71.up.railway.app"
-for i in $(seq 1 9); do
-  read -r state labels <<<"$(gh issue view <n> --repo kpnemo/kaizen-tasks-assembly-line --json state,labels --jq '.state + " " + ([.labels[].name] | join(" "))')"
-  case " $labels " in *" implementing "*|*" staging "*) [ "$state" = CLOSED ] && sleep 10 || break ;; *) break ;; esac
-done
-echo "$state $labels"     # expect: CLOSED shipped. OPEN means the harness reopened it (not in production yet): see section 4, do not add shipped again
 ```
 
-then open the Triage board and flip that issue's row, Status `implementing` (or `staging`, if triage ran again) → `shipped` (the same cell `/implement-issue` set when it took the issue into work)
-
-- **SEE** the new version and commit on both halves, the feature on production, the footer's new version, and the issue `CLOSED` with the shipped comment as its last line
-- **SEE** the loop return within about a minute with `implementing` and `staging` retired by `.github/workflows/issue-lifecycle.yml`, not by you; `shipped` is the one you added
-- **SAY** "Label first, then close: that is how the harness knows this close is a ship. Anything else that closes a request in work, it puts straight back. And that is your idea, your criteria, in production."
+- **SEE** the feature on production and the footer's new version on both halves; the issue `CLOSED`, last comment `Shipped in api <version> (<sha>) and web <version> (<sha>): <production url>`, labels down to `shipped`; the Triage board row flipped to `shipped`
+- **SAY** "No pull request closed this, and I typed no label. Merging to `develop` was staging; the workflow closed it after production read back the same hash. That is your idea, your criteria, in production, in under an hour."
 
 ## If it breaks
 
-| Symptom                                                   | Recovery in one line                                                                                                                                                            |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The in-app assistant is slow or toasts                    | Click "Skip the interview, fill the form" and keep going with the plain form.                                                                                                   |
-| The round stalls or asks something silly                  | Answer "take your recommendations" — it takes the rewordings too, so it always moves on. "use the issue text" also ends the questioning, but can leave one criterion to answer. |
-| CI red on `develop`                                       | Open the failing job's log on screen, fix forward if it is one line, otherwise move on and say so.                                                                              |
-| `promote` red on the smoke                                | Download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step, do not promote.                                                                       |
-| Railway slow (`BUILDING` past five minutes)               | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.                                                                                   |
-| A bug report was filed instead of a request               | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                                                                                           |
-| `implementing` or `staging` is still there after the wait | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later.                                                                       |
-| The issue reopened itself, "Reopened by the harness"      | Before the read-back: a merge closed it, correct, leave it open and keep promoting. After: add `shipped`, close again.                                                          |
-| `staging` never arrives after both halves are on staging  | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.                                                                                  |
+| Symptom                                                                    | Recovery in one line                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The in-app assistant is slow or toasts                                     | Click "Skip the interview, fill the form" and keep going with the plain form.                                                                                                                                                  |
+| The round stalls or asks something silly                                   | Answer "take your recommendations" — it takes the rewordings too, so it always moves on. "use the issue text" also ends the questioning, but can leave one criterion to answer.                                                |
+| CI red on `develop`                                                        | Open the failing job's log on screen, fix forward if it is one line, otherwise move on and say so.                                                                                                                             |
+| `promote` red on the smoke (`Ship failed at Promote api` or `Promote web`) | Open the run from the badge, download `smoke-results`, `npx playwright show-trace <trace.zip>`, show the failing step; fix, then Retry. Never promote by hand around a red smoke.                                              |
+| Railway slow (`BUILDING` past five minutes)                                | Show the build log, talk the room through the pipeline, redeploy only if the build is wedged.                                                                                                                                  |
+| A bug report was filed instead of a request                                | Run `/implement-issue <n>` anyway; the `bug` label routes it to systematic debugging.                                                                                                                                          |
+| `implementing` or `staging` is still there after the wait                  | `gh issue edit <n> --remove-label implementing --remove-label staging` and carry on; check the run later.                                                                                                                      |
+| The issue reopened itself, "Reopened by the harness"                       | Before production read back: a merge closed it, correct, leave it open and press Deploy to production as usual. After: add `shipped`, close again (runbook failure page).                                                      |
+| The deploy buttons are missing                                             | Not a facilitator email, or the feature is off: `curl -fsS <web url>/api/v1/health \| jq -r .data.features.pipeline` must print `true`; check the five pipeline variables on `api` (runbook checklist). Meanwhile: section 11. |
+| "Wrong passphrase" or "Too many attempts"                                  | Five wrong tries lock the account for ten minutes: wait for the time it names, or set a new `DEPLOY_PASSPHRASE` (12+ characters) on `api` (redeploys the API, two minutes). Meanwhile: section 11.                             |
+| The page says "GitHub unreachable"                                         | Rate limit or token: the API serves its last-good snapshot with its age. Check `PIPELINE_GITHUB_TOKEN` expiry and permissions (spec tokens table). Meanwhile: section 11.                                                      |
+| `Ship failed at <step>` on the row                                         | Open the run from the badge, fix what the step names, press Retry: the workflow reruns with the same inputs and resumes at that step.                                                                                          |
+| `staging` never arrives after both halves are on staging                   | Narration only, not a gate. Check `ASSEMBLY_LINE_TOKEN` in the app repos later and keep going.                                                                                                                                 |
 
 ## Numbers to keep in mind
 
@@ -167,4 +123,6 @@ then open the Triage board and flip that issue's row, Status `implementing` (or 
 - Briefing: bounded to three minutes from the `Brief start:` line it prints, the code exploration inside it asked for about one. If that exploration overruns two minutes, press Esc; the briefing carries on with the maps alone. The product maps are built before the session, not during it.
 - The round: exactly one, at most four questions, every one with a recommended answer. "take your recommendations" answers all of them.
 - Implement time box: the skill stops itself 25 minutes after it starts.
+- Pipeline page: polls every 10 s over a 30 s API cache, so a merge or a label shows within about forty seconds. Passphrase: five wrong attempts lock the account for ten minutes.
+- Ship: the button removes the typing, not the CI and deploy minutes; a full production ship is about eight to twelve minutes end to end. The Ship slot is ten, the buffer five.
 - Staging https://web-staging-52c0.up.railway.app, production https://web-production-7ef71.up.railway.app.
