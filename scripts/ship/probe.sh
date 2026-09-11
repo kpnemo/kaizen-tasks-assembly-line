@@ -18,7 +18,9 @@ if [[ -n "$board" ]]; then
   cid="$(gh api -X POST "repos/$HARNESS/issues/$board/comments" -f body="ship-token probe $(date -u +%FT%TZ), deleted right away" --jq .id 2>/dev/null || true)"
   if [[ -n "$cid" ]]; then echo "ok       comment on the board issue"; probe "delete the probe comment" "Issues: write (harness)" gh api -X DELETE "repos/$HARNESS/issues/comments/$cid"; else echo "DENIED   comment on the board issue -> grant: Issues: read and write (harness)"; status=1; fi
 fi
-probe "dispatch ship.yml (dry run)" "Actions: read and write (harness)" gh workflow run ship.yml --repo "$HARNESS" -f request_id=probe -f version=0.0.1 -f issues=1 -f dry_run=true
+# The dry run needs an issue that is really on staging to get past Preflight; PROBE_ISSUE defaults
+# to 22. "workflow not found" here means ship.yml is not on develop yet, not a permission problem.
+probe "dispatch ship.yml (dry run for #${PROBE_ISSUE:-22})" "Actions: read and write (harness)" gh workflow run ship.yml --repo "$HARNESS" -f request_id=probe -f version=9.9.9 -f "issues=${PROBE_ISSUE:-22}" -f dry_run=true
 for repo in "${APPS[@]}"; do
   short="${repo#kpnemo/}"
   sha="$(gh api "repos/$repo/commits/develop" --jq .sha 2>/dev/null)"
