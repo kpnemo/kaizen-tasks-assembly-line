@@ -6,8 +6,8 @@ The workspace and cross-repo harness for the Kaizen Tasks workshop. This reposit
 
 **Phase: preparation.** The workshop has not started. Mike announces the real session; until then every issue, triage run and ship is rehearsal and build work, and the room is not watching.
 
-- Live: release 1.3.0 in production (2026-09-11); the accent change (#19) shipped end to end; `staging-label` runs on Railway's `deployment_status`.
-- Agreed next, in this order (design approved 2026-09-11, spec `docs/superpowers/specs/2026-09-11-pipeline-control-room-design.md`): (1) issue #22, the request list on the Request page, through `/implement-issue`; (2) the `ship.yml` workflow; (3) the `/pipeline` API; (4) the `/pipeline` page; (5) runbook and playbook, then a rehearsal.
+- Live: release 1.4.0 in production (2026-09-11 10:10Z) via the `ship` workflow's first real run; #19 and #22 shipped; `staging-label` runs on Railway's `deployment_status`; `ship.yml` (`workflow_dispatch`: request_id, version, issues, dry_run) is the production button's engine and resumes on rerun.
+- Agreed next (design approved 2026-09-11, spec `docs/superpowers/specs/2026-09-11-pipeline-control-room-design.md`, plans beside it): (1) #22 shipped; (2) `ship.yml` merged and proven; (3) the `/pipeline` API, in progress on `feat/pipeline-api` (kaizen-tasks-api); (4) the `/pipeline` page, plan written, starts after the shell rework and the API PR land; (5) runbook and playbook, then a rehearsal. In parallel: the shadcn UI rework (audit 2026-09-11, six area PRs `feat/ui-*` in kaizen-tasks-web, shell first), with the shadcn skill and `docs/ui-conventions.md` "shadcn first" as the rule for every visible change.
 - The seeded requests #2, #3, #4, #5 are demo material for the live session. Do not implement them during preparation.
 - When a plan already names the next issue, do not ask which one to implement; run it. Ask only when nothing decided it.
 - Merges: after Mike's one go at a gate, the agent merges and drives the sequence itself (approved 2026-09-11); Mike decides, he does not type the commands.
