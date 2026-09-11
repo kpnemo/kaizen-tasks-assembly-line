@@ -2,6 +2,18 @@
 
 The workspace and cross-repo harness for the Kaizen Tasks workshop. This repository owns no application code. A Claude Code session started here can work in both app repos at once.
 
+## Status (read this first)
+
+**Phase: preparation.** The workshop has not started. Mike announces the real session; until then every issue, triage run and ship is rehearsal and build work, and the room is not watching.
+
+- Live: release 1.3.0 in production (2026-09-11); the accent change (#19) shipped end to end; `staging-label` runs on Railway's `deployment_status`.
+- Agreed next, in this order (design approved 2026-09-11, spec `docs/superpowers/specs/2026-09-11-pipeline-control-room-design.md`): (1) issue #22, the request list on the Request page, through `/implement-issue`; (2) the `ship.yml` workflow; (3) the `/pipeline` API; (4) the `/pipeline` page; (5) runbook and playbook, then a rehearsal.
+- The seeded requests #2, #3, #4, #5 are demo material for the live session. Do not implement them during preparation.
+- When a plan already names the next issue, do not ask which one to implement; run it. Ask only when nothing decided it.
+- Merges: after Mike's one go at a gate, the agent merges and drives the sequence itself (approved 2026-09-11); Mike decides, he does not type the commands.
+
+Update this section when the phase or the order changes.
+
 ## Layout
 
 | Path                      | What it is                                                                                                                                                                                                               |
