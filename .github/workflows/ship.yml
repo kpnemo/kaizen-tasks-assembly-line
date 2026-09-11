@@ -200,7 +200,7 @@ jobs:
           if dry; then exit 0; fi
           main_sha="$(head_of "$API_REPO" main)"
           wait_for 900 15 "production api $VERSION (${main_sha:0:7})" serves api "$PRODUCTION_WEB_URL" "$main_sha" "$VERSION"
-          echo "API_MAIN_SHA=$main_sha" >> "$GITHUB_ENV"
+          echo "API_MAIN_SHA=${main_sha:0:7}" >> "$GITHUB_ENV"
           endstep
 
       - name: Promote web
@@ -214,7 +214,7 @@ jobs:
           if dry; then exit 0; fi
           main_sha="$(head_of "$WEB_REPO" main)"
           wait_for 900 15 "production web $VERSION (${main_sha:0:7})" serves web "$PRODUCTION_WEB_URL" "$main_sha" "$VERSION"
-          echo "WEB_MAIN_SHA=$main_sha" >> "$GITHUB_ENV"
+          echo "WEB_MAIN_SHA=${main_sha:0:7}" >> "$GITHUB_ENV"
           endstep
 
       - name: Close the issues as shipped
@@ -226,7 +226,7 @@ jobs:
             fi
             run "label #$n shipped" -- gh issue edit "$n" --repo "$HARNESS" --add-label shipped
             run "close #$n" -- gh issue close "$n" --repo "$HARNESS" --reason completed \
-              --comment "Shipped in api $VERSION (${API_MAIN_SHA:0:7}) and web $VERSION (${WEB_MAIN_SHA:0:7}): $PRODUCTION_WEB_URL"
+              --comment "Shipped in api $VERSION (${API_MAIN_SHA:-unknown}) and web $VERSION (${WEB_MAIN_SHA:-unknown}): $PRODUCTION_WEB_URL"
           done
           endstep
 

@@ -27,6 +27,8 @@ if git fetch origin "$branch" 2>/dev/null; then
   count="$(git rev-list --count "origin/develop..origin/$branch")"
   files="$(git diff --name-only "origin/develop..origin/$branch" | sort | tr '\n' ' ')"
   [[ "$count" == "1" ]] || fail "$repo: $branch has $count commits over develop, expected 1"
+  pushed_version="$(git show "origin/$branch:package.json" | jq -r .version)"
+  [[ "$pushed_version" == "$version" ]] || fail "$repo: $branch carries version $pushed_version, expected $version"
   for f in $files; do
     case "$f" in
     CHANGELOG.md | package.json | package-lock.json | docs/product-map.md) ;;

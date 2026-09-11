@@ -25,6 +25,15 @@ for repo in "${APPS[@]}"; do
   probe "$short: read check runs" "Checks: read" gh api "repos/$repo/commits/$sha/check-runs" --jq .total_count
   probe "$short: read pull requests" "Pull requests: read" gh pr list --repo "$repo" --limit 1
   probe "$short: create branch probe/ship-token" "Contents: write" gh api -X POST "repos/$repo/git/refs" -f ref=refs/heads/probe/ship-token -f sha="$sha"
+  # A pull request needs a commit the base lacks: an empty commit on the probe branch through the API.
+  tree="$(gh api "repos/$repo/commits/$sha" --jq .commit.tree.sha 2>/dev/null)"
+  probe_sha="$(gh api -X POST "repos/$repo/git/commits" -f message="ship-token probe" -f tree="$tree" -f "parents[]=$sha" --jq .sha 2>/dev/null || true)"
+  if [[ -n "$probe_sha" ]] && gh api -X PATCH "repos/$repo/git/refs/heads/probe/ship-token" -f sha="$probe_sha" -F force=true >/dev/null 2>&1; then
+    pr="$(gh pr create --repo "$repo" --base develop --head probe/ship-token --title "ship-token probe (closed at once)" --body "Opened and closed by scripts/ship/probe.sh." --draft 2>/dev/null || true)"
+    if [[ -n "$pr" ]]; then echo "ok       $short: open a pull request"; probe "$short: close the probe pull request" "Pull requests: write" gh pr close "$pr" --repo "$repo"; else echo "DENIED   $short: open a pull request -> grant: Pull requests: read and write"; status=1; fi
+  else
+    echo "DENIED   $short: commit on the probe branch -> grant: Contents: write"; status=1
+  fi
   probe "$short: delete branch probe/ship-token" "Contents: write" gh api -X DELETE "repos/$repo/git/refs/heads/probe/ship-token"
 done
 echo; [[ $status == 0 ]] && echo "every probe passed: the token is enough for ship.yml" || echo "some probes were denied: adjust the token and run again"

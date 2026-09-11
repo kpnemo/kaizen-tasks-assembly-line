@@ -44,9 +44,9 @@ has_label() { case ",$(issue_labels "$1")," in *",$2,"*) return 0 ;; *) return 1
 open_prs_for() {
   local n="$1" repo
   for repo in "$API_REPO" "$WEB_REPO" "$HARNESS"; do
-    gh pr list --repo "$repo" --state open --limit 100 --json number,headRefName \
-      --jq --arg n "$n" --arg repo "$repo" \
-      '.[] | select(.headRefName | test("^(feat|fix)/" + $n + "-")) | "\($repo)#\(.number)"'
+    gh pr list --repo "$repo" --state open --limit 100 --json number,headRefName |
+      jq -r --arg n "$n" --arg repo "$repo" \
+        '.[] | select(.headRefName | test("^(feat|fix)/" + $n + "-")) | "\($repo)#\(.number)"'
   done
 }
 pr_number() { # pr_number <repo> <head> <base> <state> -> number or empty
@@ -100,14 +100,25 @@ merge_when_green() {
     echo "dry-run: would wait for $required on $repo#$n ($sha) and merge with --$method"
     return 0
   fi
-  # --watch returns once every check has finished (non-zero when one failed); the verdict below
-  # is what decides, by the required names, so a skipped or missing check never merges anything.
-  timeout "$limit" gh pr checks "$n" --repo "$repo" --watch >/dev/null 2>&1 || true
-  local name conclusion
-  for name in $required; do
-    conclusion="$(gh pr view "$n" --repo "$repo" --json statusCheckRollup \
-      --jq --arg name "$name" '[.statusCheckRollup[] | select(.name == $name)] | last | (.conclusion // .status // "missing")')"
-    [[ "$conclusion" == "SUCCESS" ]] || fail "$repo#$n: required check $name is $conclusion"
+  # Poll the rollup by the required names until every one has succeeded. `gh pr checks --watch`
+  # is not used: it returns at once when no check has registered yet (a promotion pull request
+  # opened seconds ago), and a missing check must wait, not fail.
+  local deadline=$((SECONDS + limit)) name conclusion pending
+  while :; do
+    pending=""
+    for name in $required; do
+      conclusion="$(gh pr view "$n" --repo "$repo" --json statusCheckRollup |
+        jq -r --arg name "$name" '[.statusCheckRollup[] | select(.name == $name)] | last | (.conclusion // .status // "missing")')"
+      case "$conclusion" in
+      SUCCESS) ;;
+      FAILURE | CANCELLED | TIMED_OUT | ACTION_REQUIRED | STARTUP_FAILURE) fail "$repo#$n: required check $name is $conclusion" ;;
+      *) pending="$pending $name=$conclusion" ;;
+      esac
+    done
+    [[ -z "$pending" ]] && break
+    if ((SECONDS >= deadline)); then fail "$repo#$n: required checks not green after ${limit}s:$pending"; fi
+    echo "$repo#$n: waiting for$pending"
+    sleep 20
   done
   gh pr merge "$n" --repo "$repo" "--$method" --match-head-commit "$sha"
 }
