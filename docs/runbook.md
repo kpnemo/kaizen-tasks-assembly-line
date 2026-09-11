@@ -75,7 +75,16 @@ done
 
 Time budget inside the Implement segment: the briefing is the only new cost, and it is bounded to three minutes from the `Brief start:` line it prints when it begins — taking the issue into work is not charged to it, and the 25-minute time box still runs from `Start:`. Both product maps are built beforehand and checked in the pre-session list, so nothing is generated live — only the single code exploration runs during the session, and it is asked for about a minute. If it overruns, Esc is the escape hatch (section 4) and the briefing carries on without it.
 
-Commands used in the Ship segment, in order (API first whenever the API changed; a web-only feature still cuts both releases so the two versions stay equal):
+**The production move is one dispatch.** Once the issue is on staging (label `staging`, both halves read back), run the `ship` workflow in this repository: Actions → ship → Run workflow, `request_id` anything unique, `version` the next number (minor when the changelogs have Added or Changed bullets, patch otherwise), `issues` the issue numbers on staging, `dry_run` off. Or from the terminal:
+
+```bash
+gh workflow run ship.yml --repo kpnemo/kaizen-tasks-assembly-line -f request_id=$(uuidgen) -f version=<version> -f issues=<n>[,<m>]
+gh run watch --repo kpnemo/kaizen-tasks-assembly-line $(gh run list --repo kpnemo/kaizen-tasks-assembly-line --workflow ship.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+```
+
+The run cuts both releases, merges them on `ci`, waits for staging, opens the promotion pull requests, merges them on `ci` and `promote` (api first), reads production back by merge SHA, and closes the issues as `shipped`; the room watches the step names. A failed run comments "Ship failed at <step>" on the issue; rerun it with the same inputs and it resumes. Once the pipeline page exists, "Deploy to production" dispatches the same workflow. Dry-run it before the session (`dry_run` on) and check `SHIP_TOKEN` is present (`gh secret list --repo kpnemo/kaizen-tasks-assembly-line`).
+
+**Appendix: shipping by hand.** The same sequence as commands, for the day the workflow cannot run (API first whenever the API changed; a web-only feature still cuts both releases so the two versions stay equal):
 
 ```bash
 gh pr view <pr url> --json statusCheckRollup --jq '.statusCheckRollup[] | "\(.name) \(.conclusion)"'
