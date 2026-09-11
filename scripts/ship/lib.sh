@@ -120,7 +120,23 @@ merge_when_green() {
     echo "$repo#$n: waiting for$pending"
     sleep 20
   done
-  gh pr merge "$n" --repo "$repo" "--$method" --match-head-commit "$sha"
+  # GitHub recomputes the branch-protection verdict a moment after the last check lands; merging
+  # inside that moment is refused with "the base branch policy prohibits the merge" (seen on the
+  # first real run, 2026-09-11). Wait for a settled merge state, then retry a refusal a few times.
+  local state tries=0
+  while :; do
+    state="$(gh pr view "$n" --repo "$repo" --json mergeStateStatus --jq .mergeStateStatus)"
+    case "$state" in CLEAN | HAS_HOOKS | UNSTABLE) break ;; esac
+    if ((SECONDS >= deadline)); then fail "$repo#$n: merge state stayed $state"; fi
+    echo "$repo#$n: merge state $state, waiting"
+    sleep 10
+  done
+  until gh pr merge "$n" --repo "$repo" "--$method" --match-head-commit "$sha"; do
+    tries=$((tries + 1))
+    ((tries < 6)) || fail "$repo#$n: merge refused $tries times"
+    echo "$repo#$n: merge refused, retrying in 15s ($tries/5)"
+    sleep 15
+  done
 }
 
 # --- issue comments -----------------------------------------------------------------------------
