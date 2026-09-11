@@ -1,0 +1,258 @@
+name: ship
+
+# One press of "Deploy to production" (or one dispatch by hand): cut the release in both app repos,
+# merge the release pull requests when ci is green, wait for staging, open and merge the promotion
+# pull requests when ci and promote are green (api first), read production back by merge SHA, then
+# close every issue in the set as shipped. Every step is idempotent, so a rerun with the same inputs
+# resumes; the version and the issue set are recorded on the issues first, and a rerun trusts that
+# record. Runs in this repository on purpose: Railway's wait-for-CI holds an app deploy until every
+# check suite on the app commit has finished, and a workflow that waits for a deploy must never be
+# one of those suites (docs/cicd-log.md, 2026-09-10). Helpers live in scripts/ship/.
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Correlation id (a UUID from the API, or any short unique string by hand)
+        required: true
+        type: string
+      version:
+        description: Release version for both repos, e.g. 1.4.0
+        required: true
+        type: string
+      issues:
+        description: Comma-separated harness issue numbers that are on staging
+        required: true
+        type: string
+      dry_run:
+        description: Read and check everything, write nothing
+        required: false
+        type: boolean
+        default: false
+
+run-name: ship ${{ inputs.request_id }} ${{ inputs.version }}
+
+# Ships queue behind each other and are never cancelled; the API's own lock keeps a third click out.
+concurrency:
+  group: ship
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  HARNESS: kpnemo/kaizen-tasks-assembly-line
+  API_REPO: kpnemo/kaizen-tasks-api
+  WEB_REPO: kpnemo/kaizen-tasks-web
+  STAGING_WEB_URL: ${{ vars.STAGING_WEB_URL }}
+  PRODUCTION_WEB_URL: ${{ vars.PRODUCTION_WEB_URL }}
+  GH_TOKEN: ${{ secrets.SHIP_TOKEN }}
+  REQUEST_ID: ${{ inputs.request_id }}
+  VERSION: ${{ inputs.version }}
+  ISSUES: ${{ inputs.issues }}
+  DRY_RUN: ${{ inputs.dry_run }}
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  ship:
+    name: ship
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ github.token }}
+
+      - name: Validate the inputs
+        run: |
+          . scripts/ship/lib.sh; step "Validate the inputs"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version must be X.Y.Z"
+          [[ "$ISSUES" =~ ^[0-9]+(,[0-9]+)*$ ]] || fail "issues must be comma-separated numbers"
+          [[ "$REQUEST_ID" =~ ^[A-Za-z0-9._-]{1,80}$ ]] || fail "request_id must be a short id"
+          [[ -n "${GH_TOKEN:-}" ]] || fail "the SHIP_TOKEN secret is not set"
+          [[ -n "$STAGING_WEB_URL" && -n "$PRODUCTION_WEB_URL" ]] || fail "STAGING_WEB_URL and PRODUCTION_WEB_URL variables are required"
+          gh api user --jq '"token user: " + .login'
+          endstep
+
+      - name: Record the ship on the issues
+        run: |
+          . scripts/ship/lib.sh; step "Record the ship on the issues"
+          started="$(date -u +%FT%TZ)"
+          issues_json="[$ISSUES]"
+          for n in ${ISSUES//,/ }; do
+            existing="$(marker_of "$n")"
+            if [[ -n "$existing" ]] && [[ "$(jq -r .requestId <<<"$existing")" == "$REQUEST_ID" ]]; then
+              echo "#$n already carries the marker for $REQUEST_ID"; continue
+            fi
+            if [[ -n "$existing" ]] && [[ "$(jq -r .version <<<"$existing")" != "$VERSION" ]] \
+               && [[ "$(jq -r '.done // false' <<<"$existing")" != "true" ]]; then
+              fail "#$n carries an unfinished ship for $(jq -r .version <<<"$existing") ($(jq -r .requestId <<<"$existing")); retry that one first"
+            fi
+            marker="$(jq -cn --arg v "$VERSION" --arg r "$REQUEST_ID" --arg s "$started" --arg u "$RUN_URL" --argjson i "$issues_json" \
+              '{version:$v,requestId:$r,startedAt:$s,runUrl:$u,issues:$i}')"
+            comment "$n" "<!-- kaizen-ship $marker -->
+          Ship started: version $VERSION for issues $ISSUES. Run: $RUN_URL"
+          done
+          endstep
+
+      - name: Preflight
+        run: |
+          . scripts/ship/lib.sh; step "Preflight"
+          for n in ${ISSUES//,/ }; do
+            has_label "$n" staging || fail "#$n is not labelled staging"
+            open="$(open_prs_for "$n" | paste -sd' ' -)"
+            [[ -z "$open" ]] || fail "#$n still has open pull requests: $open"
+          done
+          api_dev="$(head_of "$API_REPO" develop)"; web_dev="$(head_of "$WEB_REPO" develop)"
+          api_cur="$(version_on "$API_REPO" develop)"; web_cur="$(version_on "$WEB_REPO" develop)"
+          echo "develop: api $api_cur ${api_dev:0:7}, web $web_cur ${web_dev:0:7}; target $VERSION"
+          if [[ "$api_cur" != "$web_cur" ]]; then
+            [[ "$api_cur" == "$VERSION" || "$web_cur" == "$VERSION" ]] \
+              || fail "develop versions differ ($api_cur vs $web_cur) and neither is $VERSION: fix by hand"
+            echo "one repo already released $VERSION: resuming"
+          fi
+          for cur in "$api_cur" "$web_cur"; do
+            [[ "$cur" == "$VERSION" ]] || semver_gt "$VERSION" "$cur" || fail "$VERSION is not greater than $cur"
+          done
+          # Staging must already serve develop's heads: a promotion pull request opened while
+          # staging is still deploying would wait on Railway while Railway's wait-for-CI waits on it.
+          [[ "$api_cur" == "$VERSION" ]] || serves api "$STAGING_WEB_URL" "$api_dev" "$api_cur" \
+            || fail "staging api does not serve develop ($(api_served "$STAGING_WEB_URL" || echo unreachable))"
+          [[ "$web_cur" == "$VERSION" ]] || serves web "$STAGING_WEB_URL" "$web_dev" "$web_cur" \
+            || fail "staging web does not serve develop ($(web_served "$STAGING_WEB_URL" || echo unreachable))"
+          endstep
+
+      - name: Check out the api repo
+        uses: actions/checkout@v5
+        with:
+          repository: kpnemo/kaizen-tasks-api
+          ref: develop
+          token: ${{ secrets.SHIP_TOKEN }}
+          path: api
+          fetch-depth: 0
+      - name: Check out the web repo
+        uses: actions/checkout@v5
+        with:
+          repository: kpnemo/kaizen-tasks-web
+          ref: develop
+          token: ${{ secrets.SHIP_TOKEN }}
+          path: web
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: api/.nvmrc
+
+      - name: Cut release in api
+        run: |
+          . scripts/ship/lib.sh; step "Cut release in api"
+          (cd api && npm ci --no-audit --no-fund >/dev/null)
+          bash scripts/ship/cut-release.sh api "$API_REPO" "$VERSION"
+          endstep
+
+      - name: Cut release in web
+        run: |
+          . scripts/ship/lib.sh; step "Cut release in web"
+          (cd web && npm ci --no-audit --no-fund >/dev/null)
+          bash scripts/ship/cut-release.sh web "$WEB_REPO" "$VERSION"
+          endstep
+
+      - name: Merge the release pull requests
+        run: |
+          . scripts/ship/lib.sh; step "Merge the release pull requests"
+          for repo in "$API_REPO" "$WEB_REPO"; do
+            if [[ "$(version_on "$repo" develop)" == "$VERSION" ]]; then echo "$repo develop already at $VERSION"; continue; fi
+            n="$(pr_number "$repo" "release/$VERSION" develop open)"
+            if [[ -z "$n" ]]; then
+              if dry; then echo "dry-run: no release pull request yet in $repo"; continue; fi
+              fail "no open release pull request in $repo"
+            fi
+            merge_when_green "$repo" "$n" 900 merge
+          done
+          endstep
+
+      - name: Wait for staging to serve the release
+        run: |
+          . scripts/ship/lib.sh; step "Wait for staging to serve the release"
+          if dry; then echo "dry-run: would wait for staging to serve $VERSION in both halves"; exit 0; fi
+          api_dev="$(head_of "$API_REPO" develop)"; web_dev="$(head_of "$WEB_REPO" develop)"
+          wait_for 900 15 "staging api $VERSION (${api_dev:0:7})" serves api "$STAGING_WEB_URL" "$api_dev" "$VERSION"
+          wait_for 900 15 "staging web $VERSION (${web_dev:0:7})" serves web "$STAGING_WEB_URL" "$web_dev" "$VERSION"
+          endstep
+
+      - name: Open the promotion pull requests
+        run: |
+          . scripts/ship/lib.sh; step "Open the promotion pull requests"
+          for repo in "$API_REPO" "$WEB_REPO"; do
+            if [[ "$(version_on "$repo" main)" == "$VERSION" ]]; then echo "$repo main already at $VERSION"; continue; fi
+            if [[ -n "$(pr_number "$repo" develop main open)" ]]; then echo "$repo promotion pull request already open"; continue; fi
+            run "open the $repo promotion pull request develop → main" -- \
+              gh pr create --repo "$repo" --base main --head develop --title "release: $VERSION" --body "Promote develop to main (ship $REQUEST_ID)."
+          done
+          endstep
+
+      - name: Promote api
+        run: |
+          . scripts/ship/lib.sh; step "Promote api"
+          if [[ "$(version_on "$API_REPO" main)" != "$VERSION" ]]; then
+            n="$(pr_number "$API_REPO" develop main open)"
+            if [[ -z "$n" ]]; then if dry; then exit 0; fi; fail "no api promotion pull request"; fi
+            merge_when_green "$API_REPO" "$n" 1800 merge
+          fi
+          if dry; then exit 0; fi
+          main_sha="$(head_of "$API_REPO" main)"
+          wait_for 900 15 "production api $VERSION (${main_sha:0:7})" serves api "$PRODUCTION_WEB_URL" "$main_sha" "$VERSION"
+          echo "API_MAIN_SHA=$main_sha" >> "$GITHUB_ENV"
+          endstep
+
+      - name: Promote web
+        run: |
+          . scripts/ship/lib.sh; step "Promote web"
+          if [[ "$(version_on "$WEB_REPO" main)" != "$VERSION" ]]; then
+            n="$(pr_number "$WEB_REPO" develop main open)"
+            if [[ -z "$n" ]]; then if dry; then exit 0; fi; fail "no web promotion pull request"; fi
+            merge_when_green "$WEB_REPO" "$n" 1800 merge
+          fi
+          if dry; then exit 0; fi
+          main_sha="$(head_of "$WEB_REPO" main)"
+          wait_for 900 15 "production web $VERSION (${main_sha:0:7})" serves web "$PRODUCTION_WEB_URL" "$main_sha" "$VERSION"
+          echo "WEB_MAIN_SHA=$main_sha" >> "$GITHUB_ENV"
+          endstep
+
+      - name: Close the issues as shipped
+        run: |
+          . scripts/ship/lib.sh; step "Close the issues as shipped"
+          for n in ${ISSUES//,/ }; do
+            if [[ "$(gh issue view "$n" --repo "$HARNESS" --json state --jq .state)" == "CLOSED" ]] && has_label "$n" shipped; then
+              echo "#$n already shipped"; continue
+            fi
+            run "label #$n shipped" -- gh issue edit "$n" --repo "$HARNESS" --add-label shipped
+            run "close #$n" -- gh issue close "$n" --repo "$HARNESS" --reason completed \
+              --comment "Shipped in api $VERSION (${API_MAIN_SHA:0:7}) and web $VERSION (${WEB_MAIN_SHA:0:7}): $PRODUCTION_WEB_URL"
+          done
+          endstep
+
+      - name: Bookkeeping (board rows, ship complete)
+        continue-on-error: true
+        run: |
+          . scripts/ship/lib.sh; step "Bookkeeping"
+          board="$(gh issue list --repo "$HARNESS" --label triage-board --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "$board" ]]; then
+            gh issue view "$board" --repo "$HARNESS" --json body --jq .body > board.md
+            for n in ${ISSUES//,/ }; do
+              sed -i -E "/^\| [0-9]+ +\| #$n +\|/ s/\| (triaged|implementing|staging) +\|\$/| shipped |/" board.md
+            done
+            run "flip the board rows to shipped" -- gh issue edit "$board" --repo "$HARNESS" --body-file board.md
+          fi
+          done_marker="$(jq -cn --arg v "$VERSION" --arg r "$REQUEST_ID" --arg u "$RUN_URL" '{version:$v,requestId:$r,runUrl:$u,done:true}')"
+          for n in ${ISSUES//,/ }; do
+            comment "$n" "<!-- kaizen-ship $done_marker -->
+          Ship complete: $RUN_URL"
+          done
+          endstep
+
+      - name: Report a failed or cancelled ship
+        if: ${{ !success() }}
+        run: |
+          . scripts/ship/lib.sh
+          for n in ${ISSUES//,/ }; do
+            comment "$n" "Ship failed at \"${STEP:-start}\" (${{ job.status }}): $RUN_URL. Rerun with the same inputs to resume."
+          done
