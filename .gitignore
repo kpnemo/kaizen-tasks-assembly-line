@@ -11,3 +11,6 @@ smoke/playwright-report/
 .env.*
 !.env.example
 .DS_Store
+
+# Serena MCP tool state
+.serena/
