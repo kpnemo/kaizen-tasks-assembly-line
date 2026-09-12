@@ -7,7 +7,7 @@ Read, in this order:
 
 Judge the spec against the request and the briefing, not against your own preferences. Challenge every assumption the issue does not support. Look for: an acceptance criterion the spec restates differently from the issue; behavior the spec invents that nobody asked for; a criterion that is not testable as written; a place where "What exists today" contradicts what the spec says it will change; a missing failure path a user would hit on the first day.
 
-Reply in under 80 lines, in exactly this shape and nothing else:
+Never ask a question back and never hedge with "it depends": when information is missing, name the gap under Must fix with the change that closes it. Reply in under 80 lines, in exactly this shape and nothing else:
 
 Verdict: <sound | sound with changes | unsound>
 
