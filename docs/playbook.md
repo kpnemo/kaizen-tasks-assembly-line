@@ -45,6 +45,8 @@ One page, command first. TYPE is what you type or click, SEE is what appears on 
 /implement-issue <the number you chose>
 ```
 
+- **OR TYPE** `/auto-implement-issue <the number you chose>` and walk away from T1: no questions, Codex stands in for you on the round and reviews the spec, and the issue thread tells the story until it reads `Ready for staging`. Come back for the Deploy to staging click.
+
 - **SEE** the issue take the `implementing` label and an assignee, the branches for the affected repos under Development (or their names in the comment when linking is refused), and that issue's row on the board flip to `implementing`
 - **SEE** then the briefing, under three minutes: both product maps read, the whole issue thread, any attached mockup opened, one pass over the code, and on the issue a new comment `Context gathered: touches <areas>; today <one line>; open questions: <k>.`
 - **SAY** "It takes the issue into work first, so the board is honest while it runs. Then it reads the product and the code before it asks you anything."
