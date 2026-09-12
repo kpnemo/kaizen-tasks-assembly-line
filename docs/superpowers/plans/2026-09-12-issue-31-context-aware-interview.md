@@ -12,6 +12,7 @@
 
 ## Global Constraints
 
+- Release: this feature ships as 1.7.0 (1.6.0 shipped 2026-09-11).
 - Branch name in all three repos: `feat/31-context-aware-feature-request-interview`, off `develop`. Never push to `develop` or `main`; open pull requests and stop.
 - API first, web second: the web repo pulls the contract from the API branch (`cd frontend && scripts/pull-openapi.sh --local ../backend/openapi.json && npm run api:types`) before any web code changes.
 - Every task is test-first: the failing test output is shown before the implementation, the passing output after.
@@ -19,7 +20,7 @@
 - Run `nvm use` inside `backend/` and `frontend/` before any npm command.
 - Before each repo's pull request: `npm run product-map`, `npm test`, `npm run typecheck`, `npm run lint`, then `BASE_SHA=$(git merge-base origin/develop HEAD) bash scripts/docs-check.sh --ci` whose last line must be `docs-check: OK`. Never `npm run docs:check` (that is the Stop-hook mode).
 - `src/agent/prompts/**` (API) and `src/api/**` (web) are architectural files: each repo needs one ADR in this branch (Tasks 8 and 9).
-- **No version bump in either repo.** The pipeline's `ship.yml` cuts 1.6.0 at promotion time. (The spec's "release 1.6.0" is the ship, not a commit here.)
+- **No version bump in either repo.** The pipeline's `ship.yml` cuts 1.7.0 at promotion time. (The spec's "release 1.7.0" is the ship, not a commit here.)
 - Copy rules: chips are real `Button`s named by their visible text; the smoke test drives the app by role and name, so the recommended chip's accessible name stays its option text (the badge is `aria-hidden`).
 - Model constants, verbatim: `INTERVIEW_MODEL` default `claude-fable-5-1`; `INTERVIEW_EFFORT` enum `low|medium|high|xhigh|max` default `medium`; `PRODUCT_CONTEXT_REF` default `develop`; `PRODUCT_CONTEXT_REFRESH_MINUTES` default `10`; `INTERVIEW_MAX_OUTPUT_TOKENS = 16_000`; `INTERVIEW_TIMEOUT_MS = 90_000`; beta `server-side-fallback-2026-07-01` with `fallbacks: "default"`.
 - Fixed strings, verbatim: `FINISHED_CONTENT = "Finish with what we have"` (stored user message and chip label); `FINISH_TURN_CONTENT = "The PM asked to finish the interview with what you have."` (what the model sees); unavailable lines `Web product map: unavailable (fetch failed)` and `UI conventions: unavailable (fetch failed)`.
@@ -1712,7 +1713,7 @@ Body shape as in Task 8, plus the line `Merge after kpnemo/kaizen-tasks-api#<n>:
 
 - [ ] **Step 1: Spec corrections** (in the same commit as the plan)
 
-In section 4, replace "the badge is inside the button, so the chip's accessible name is "<option> Recommended"" with "the badge is `aria-hidden`, so the chip's accessible name stays the option text and the smoke selector contract holds". In the header and section 5, replace "release 1.6.0" wording with "no version bump in the feature pull requests; `ship.yml` cuts 1.6.0 at promotion".
+In section 4, replace "the badge is inside the button, so the chip's accessible name is "<option> Recommended"" with "the badge is `aria-hidden`, so the chip's accessible name stays the option text and the smoke selector contract holds". In the header and section 5, replace "release 1.7.0" wording with "no version bump in the feature pull requests; `ship.yml` cuts 1.7.0 at promotion".
 
 - [ ] **Step 2: PRD and Railway docs**
 
@@ -1757,7 +1758,7 @@ Pass when: the first reply states what was understood and names what came from t
 
 - [ ] **Step 4: Fable retention failure path.** If the first turn errors and the API log shows a 400 naming data retention, set `INTERVIEW_MODEL=claude-opus-5` on staging and production, redeploy, rerun Step 3, and note the model in the #31 comment and in the API CHANGELOG line of the release.
 
-- [ ] **Step 5: Production.** "Deploy to production" from the pipeline page (ship.yml cuts 1.6.0 in both repos). Read back `GET /api/v1/health` version on production, run the Step 3 replay once more on production with Start over afterwards so no stray conversation is left, then close #31 through the runbook's Ship step. Update the harness `CLAUDE.md` status line.
+- [ ] **Step 5: Production.** "Deploy to production" from the pipeline page (ship.yml cuts 1.7.0 in both repos). Read back `GET /api/v1/health` version on production, run the Step 3 replay once more on production with Start over afterwards so no stray conversation is left, then close #31 through the runbook's Ship step. Update the harness `CLAUDE.md` status line.
 
 ---
 

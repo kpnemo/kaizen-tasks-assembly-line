@@ -3,7 +3,7 @@
 **Status:** approved by Mike on 2026-09-12 00:45 IDT (design presented in chat, one yes).
 **Tracking issue:** kpnemo/kaizen-tasks-assembly-line#31.
 **Repos:** `kpnemo/kaizen-tasks-api` (contract first) and `kpnemo/kaizen-tasks-web`. Cross-repo docs here.
-**Release:** 1.6.0 in both app repos.
+**Release:** no version bump in the feature pull requests; `ship.yml` cuts 1.7.0 at promotion.
 **Supersedes parts of:** `2026-09-10-agentic-feature-request-design.md` sections 2 (Turns), 3.4 (Interview agent) and 3.6 (Config). Everything that spec says and this one does not contradict still holds.
 
 ## 1. Goal
@@ -132,7 +132,7 @@ The scripted fake sets `recommended` to its first option on every question, and 
 Contract pull first (`scripts/pull-openapi.sh --local ../backend/openapi.json && npm run api:types`), then:
 
 - `hooks.ts`: `SendTurnVariables` gains `finish?: boolean`; the body sends `{ content, skip, finish }`; `pendingMessage` shows "Finish with what we have" for a finishing turn.
-- `ConversationPanel.tsx`: the chips row orders `last.recommended` first, rendered as a `Button variant="outline"` whose content is the option text followed by a `Badge variant="secondary"` reading "Recommended" (the badge is inside the button, so the chip's accessible name is "<option> Recommended"). After "Skip this question", when `conversation.questionCount >= 1` and the conversation is open, an outline chip "Finish with what we have" (lucide `Flag` icon) that calls `send("Finish with what we have", { finish: true })`. Nothing else in the panel changes; the understanding reply is an ordinary assistant bubble.
+- `ConversationPanel.tsx`: the chips row orders `last.recommended` first, rendered as a `Button variant="outline"` whose content is the option text followed by a `Badge variant="secondary"` reading "Recommended" (the badge is `aria-hidden`, so the chip's accessible name stays the option text and the smoke selector contract holds). After "Skip this question", when `conversation.questionCount >= 1` and the conversation is open, an outline chip "Finish with what we have" (lucide `Flag` icon) that calls `send("Finish with what we have", { finish: true })`. Nothing else in the panel changes; the understanding reply is an ordinary assistant bubble.
 - `DraftPanel.tsx`: unchanged (`ready` already follows `status === "ready"`).
 - README "Selector contract" gains the row for the button "Finish with what we have". ADR 0011 "Contract pull: recommended answer and finish" per the contract-pull rule.
 
@@ -140,8 +140,8 @@ Tests: the recommended chip renders first with the badge and clicking it sends i
 
 ## 5. Docs and release
 
-- API: ADR 0007 "Product context fetched at runtime for the interview" (why GitHub raw by ref rather than a vendored copy or a client-supplied block; the failure mode; the cache placement); `docs/ARCHITECTURE.md` interview section; README environment table; `docs/railway-setup.md` gains the four variables and the production `PRODUCT_CONTEXT_REF=main`; CHANGELOG; release 1.6.0.
-- Web: ADR 0011; README selector row and feature note; CHANGELOG; release 1.6.0.
+- API: ADR 0007 "Product context fetched at runtime for the interview" (why GitHub raw by ref rather than a vendored copy or a client-supplied block; the failure mode; the cache placement); `docs/ARCHITECTURE.md` interview section; README environment table; `docs/railway-setup.md` gains the four variables and the production `PRODUCT_CONTEXT_REF=main`; CHANGELOG; no version bump in the feature pull requests; `ship.yml` cuts 1.7.0 at promotion.
+- Web: ADR 0011; README selector row and feature note; CHANGELOG; no version bump in the feature pull requests; `ship.yml` cuts 1.7.0 at promotion.
 - Assembly line: this spec; PRD R-section for the interview updated (context, recommended answer, finish); CLAUDE.md status line once shipped.
 
 ## 6. Order and milestones
