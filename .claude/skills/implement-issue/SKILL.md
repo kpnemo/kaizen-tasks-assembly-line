@@ -341,9 +341,12 @@ gh issue comment <n> --repo $REPO --body "Interview done: <k> questions, <r> rec
 Then invoke `superpowers:writing-plans`, scaled down for a live 30-minute segment:
 
 - Write the plan to the constant path above.
-- One to four tasks per affected repo, no more. Each task names the repo's own skill (`backend/.claude/skills/add-api-endpoint/SKILL.md` for the API, `frontend/.claude/skills/add-frontend-feature/SKILL.md` for the web) and carries the failing test, the implementation, that repo's checks, and the commit.
+- **The plan is written in lanes, one per repo**, because Step 7 runs the lanes side by side: `## Lane API: backend/ (kpnemo/kaizen-tasks-api)`, `## Lane Web: frontend/ (kpnemo/kaizen-tasks-web)`, and, only when this repo changes too (docs, a Railway variable, the `CLAUDE.md` status), `## Lane Harness`. A request that touches one repo has one lane. Task headings are `### Task <n>: <title>` under their lane, and **task numbers are unique across the whole plan** — the execution skill's `task-brief` script finds a task by its number at any heading level, and a duplicate number would hand an implementer the wrong task.
+- One to four tasks per lane, no more. Each task names the repo's own skill (`backend/.claude/skills/add-api-endpoint/SKILL.md` for the API, `frontend/.claude/skills/add-frontend-feature/SKILL.md` for the web) and carries the failing test, the implementation, that repo's checks, and the commit.
+- **Contract first, then fork.** When the contract changes, the API lane's Task 1 is the contract task and nothing else: the schemas, `npm run openapi` (which regenerates `openapi.json` and `docs/API.md`), the `## Routes` row in `backend/README.md`, one commit. It is the **only** task allowed to touch `openapi.json`; a later task that needs the contract to move is a defect in the plan — fix the plan, do not let the task do it. The web lane's Task 1 is then the pull: `scripts/pull-openapi.sh --local ../backend/openapi.json`, `npm run api:types`, the contract ADR (Step 7, "The contract ripple"). When the contract does not change, both lanes start at once.
+- A `## Joins` block right after `## Global Constraints`, two lines, each naming an observable event: `Web lane starts after: API Task 1 committed` (or `at once` when the contract is unchanged); `Web screenshot task starts after: API lane final review clean` — the screenshot script bails without a dev stack behind port 5173, and that stack must serve the finished API branch.
 - **The web task carries the screenshot step whenever anything visible changes**: after the change is committed, run `node scripts/screenshot.mjs <scenario>` in `frontend/` (the scenarios are small files under `frontend/scripts/screenshots/`), open both PNGs with the Read tool, compare them against the spec's `## Looks` section, and commit `docs/screenshots/<name>-{light,dark}.png`. The web pull request body then embeds them with **commit-pinned** URLs — `https://raw.githubusercontent.com/kpnemo/kaizen-tasks-web/<sha of the commit that added the PNGs>/docs/screenshots/<file>`, never the branch name, and re-pinned if a later commit replaces the images. If the script exits 2, the body carries the one line `Screenshot unavailable: <the reason it printed>` and no images; that is the only allowed exception.
-- The spec's acceptance criteria are the global constraints; the smallest slice that satisfies all of them is the whole plan. If both repos change, the API changes first and the web follows after pulling the contract. When the contract itself changes, the plan carries the ripple as named tasks, not as an afterthought (Step 7, "The contract ripple"): the API's `docs/API.md` and README route table, the web's pull and regenerated types, the web's ADR, and the auth-store literal if the user shape moved.
+- The spec's acceptance criteria are the global constraints; the smallest slice that satisfies all of them is the whole plan. If both repos change, the API **contract** lands first; the rest of the API lane and the web lane then run in parallel, the web after pulling the contract. When the contract itself changes, the plan carries the ripple as named tasks, not as an afterthought (Step 7, "The contract ripple"): the API's `docs/API.md` and README route table, the web's pull and regenerated types, the web's ADR, and the auth-store literal if the user shape moved.
 - Show the plan and wait for the facilitator's yes.
 
 On that yes, comment once (the docs pull request URL is added in Step 8, when it exists):
@@ -373,9 +376,9 @@ Then Step 7.
 
 ## Step 7: Execute in the affected repos
 
-Request path: execute the plan with `superpowers:executing-plans`, or with `superpowers:subagent-driven-development` when the facilitator asks for subagents; say which one you are using. Bug path: the fix from Step 6 is the execution. Either way each task follows the nested repo's own skill, and every task is test-first.
+Request path: a plan with two or more lanes executes with `superpowers:subagent-driven-development`, this session as the controller, the lanes side by side ("Two lanes" below); a one-lane plan executes with `superpowers:executing-plans`, or with `superpowers:subagent-driven-development` when the facilitator asks for subagents. Say which one you are using. Bug path: the fix from Step 6 is the execution. Either way each task follows the nested repo's own skill, and every task is test-first.
 
-Branch, API first when both repos change. Step 2 already created these on GitHub, so this checks them out and falls back to a local branch if it did not:
+Branch both repos before anything runs. Step 2 already created these on GitHub, so this checks them out and falls back to a local branch if it did not:
 
 ```bash
 git -C backend fetch origin
@@ -383,6 +386,22 @@ git -C backend switch feat/<n>-<slug> 2>/dev/null || git -C backend switch -c fe
 git -C frontend fetch origin
 git -C frontend switch feat/<n>-<slug> 2>/dev/null || git -C frontend switch -c feat/<n>-<slug> origin/develop
 ```
+
+### Two lanes
+
+`backend/` and `frontend/` are two git repositories on two `feat/<n>-<slug>` branches, so an implementer in each can never touch the same file. That is what makes the lanes safe to run at once, and it is also the limit of it:
+
+- **One implementer per lane, lanes concurrent, never two implementers in the same repo.** The execution skill's rule "never dispatch multiple implementation subagents in parallel" guards a single working tree; here each lane is its own tree, so the rule reads: at most one implementer per lane. Two in one repo would conflict exactly as that rule says.
+- **Dispatch the lane-first tasks in one message**, one Agent call per lane, the moment the plan's `## Joins` allow it: both at once when the contract is unchanged, the web lane after the API contract commit otherwise.
+- **Each dispatch is scoped to its lane.** It names the lane's repo directory by absolute path as the only place the implementer may write, the branch, `nvm use` there before any npm command, the brief and report paths the execution skill's `task-brief` script printed, and the model the execution skill's model-selection rules choose for that task. The implementer never touches the other repo or this one.
+- **Per lane, the execution skill's loop is unchanged**: report, review package, task reviewer, fix loop, next task in that lane. Reviews of one lane run while the other lane's implementer is still working; never hold a review until both lanes are idle.
+- **Package the review per lane, from this workspace root**, into the shared scratch: `git -C <repo> log --oneline BASE..HEAD`, `git -C <repo> diff --stat BASE..HEAD` and `git -C <repo> diff -U10 BASE..HEAD`, concatenated into `.superpowers/sdd/<plan-slug>/review-<api|web>-t<n>-<base7>..<head7>.diff`. Never run the execution skill's `review-package` script from this root: it runs `git` here, and this repository does not hold the nested repos' commits.
+- **One ledger**, `.superpowers/sdd/<plan-slug>/progress.md`, every row prefixed with its lane: `API T<n>` or `Web T<n>`.
+- **The Harness lane is the controller's own work**, done while both lanes are busy and no report is waiting; no subagent for it. When genuinely idle on both lanes, wait the way the execution skill says: bounded stretches, one status line between them.
+- **The join before the screenshots.** When the API lane's final review is clean, start the API from that branch (`cd backend && nvm use && npm run dev`, in the background) and, if it is not already running, the web dev server with `VITE_PROXY_TARGET=http://localhost:3000`; only then release the web lane's screenshot task. Stop both servers after the screenshots are committed.
+- **Final review per lane**: one whole-branch review per repo, both dispatched in one message, on the most capable model, as the execution skill requires.
+- A rate limit kills the subagents of both lanes at once; relaunch both from the ledger.
+- Bug path and one-lane plans: none of this applies, one implementer at a time as before.
 
 ### The contract ripple
 
@@ -433,7 +452,7 @@ Time box: check the clock at each step boundary against the `Start:` printed in 
 
 ## Step 8: Push and open the pull requests
 
-For each affected repo (`backend` with `kpnemo/kaizen-tasks-api`, `frontend` with `kpnemo/kaizen-tasks-web`):
+For each lane, **as soon as its final review is clean** — the API pull request opens while the web lane is still working, not after it (`backend` with `kpnemo/kaizen-tasks-api`, `frontend` with `kpnemo/kaizen-tasks-web`):
 
 ```bash
 git -C <dir> push -u origin feat/<n>-<slug>
