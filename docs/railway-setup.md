@@ -72,7 +72,7 @@ Verify the names (values are not printed):
 railway variable list --service api --environment production --json | jq -r 'keys[]' | sort
 ```
 
-Expected names: `ADMIN_TOKEN AI_ENABLED AI_GLOBAL_LIMIT_PER_HOUR AI_MODEL AI_RATE_LIMIT_PER_HOUR AI_STALE_MINUTES ANTHROPIC_API_KEY APP_ENV DATABASE_URL INTERVIEW_EFFORT INTERVIEW_MODEL JWT_SECRET LOG_LEVEL PORT PRODUCT_CONTEXT_REF PRODUCT_CONTEXT_REFRESH_MINUTES REDIS_URL SEED_DEMO_PASSWORD SEED_DEMO_USER WORKER_ENABLED` plus Railway's own `RAILWAY_*` entries. Production sets `PRODUCT_CONTEXT_REF=main`; staging and everything else keep the defaults `INTERVIEW_MODEL=claude-fable-5-1`, `INTERVIEW_EFFORT=medium`, `PRODUCT_CONTEXT_REF=develop`, `PRODUCT_CONTEXT_REFRESH_MINUTES=10`.
+Expected names: `ADMIN_TOKEN AI_ENABLED AI_GLOBAL_LIMIT_PER_HOUR AI_MODEL AI_RATE_LIMIT_PER_HOUR AI_STALE_MINUTES ANTHROPIC_API_KEY APP_ENV DATABASE_URL JWT_SECRET LOG_LEVEL PORT PRODUCT_CONTEXT_REF REDIS_URL SEED_DEMO_PASSWORD SEED_DEMO_USER WORKER_ENABLED` plus Railway's own `RAILWAY_*` entries. The four interview variables are optional, with defaults `INTERVIEW_MODEL=claude-fable-5-1`, `INTERVIEW_EFFORT=medium`, `PRODUCT_CONTEXT_REF=develop`, `PRODUCT_CONTEXT_REFRESH_MINUTES=10`. Only `PRODUCT_CONTEXT_REF` is declared in `.railway/railway.ts` (`main` on production, `develop` on staging), so it appears in this list on both environments; the other three (`INTERVIEW_MODEL`, `INTERVIEW_EFFORT`, `PRODUCT_CONTEXT_REFRESH_MINUTES`) appear only if an operator sets them.
 
 Then confirm the key is real, without printing it:
 
