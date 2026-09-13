@@ -14,3 +14,7 @@ smoke/playwright-report/
 
 # Serena MCP tool state
 .serena/
+
+# graphify per-machine interpreter sidecars (the graph itself is committed)
+graphify-out/.graphify_python
+graphify-out/.graphify_root
